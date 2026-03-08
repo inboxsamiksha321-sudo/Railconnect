@@ -45,7 +45,9 @@ Complaint Sources → AI Processing → Priority Assignment → Department Routi
 ## ⚙ Tech Stack
 
 Frontend  
-- React / Flutter (depending on implementation)
+- React
+- vite
+- Tailwind CSS
 
 Backend  
 - Node.js / Python
