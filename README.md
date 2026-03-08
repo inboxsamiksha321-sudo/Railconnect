@@ -45,8 +45,7 @@ Complaint Sources → AI Processing → Priority Assignment → Department Routi
 ## ⚙ Tech Stack
 
 Frontend  
-- React
-- vite
+- React(vite)
 - Tailwind CSS
 
 Backend  
@@ -62,15 +61,12 @@ Database
 Automation  
 - n8n workflows
 
----
-
 ## 📊 Features
 
 - Complaint detection from WhatsApp, Telegram, Twitter etc all directed to a single platform 
 - Multilingual complaint handling
 - Automatic department routing
 - Real-time dashboard
-- Analytics for complaint trends
 - Feedback & resolution tracking
 
 ---
