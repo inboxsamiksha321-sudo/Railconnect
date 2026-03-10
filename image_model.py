@@ -1,24 +1,12 @@
 import torch
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
-from fastapi import FastAPI
-from pydantic import BaseModel
-from fastapi import UploadFile, File
-from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
+from PIL import Image
 
-app = FastAPI()
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
-# Load trained model
-model = DistilBertForSequenceClassification.from_pretrained("railway_complaint_model")
-tokenizer = DistilBertTokenizer.from_pretrained("railway_complaint_model")
-
-model.eval()
-
-# Load CLIP model for image classification
-clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-
-image_labels = [
+labels = [
+    # Cleanliness
     "dirty railway toilet",
     "garbage inside train coach",
     "trash on train floor",
@@ -29,6 +17,7 @@ image_labels = [
     "overflowing garbage bin in train",
     "dirty train corridor",
     "water spilled on train floor",
+    # Infrastructure
     "broken train seat",
     "damaged train seat cushion",
     "torn train seat cover",
@@ -39,6 +28,7 @@ image_labels = [
     "broken luggage rack in train",
     "damaged train coach interior",
     "loose train handrail",
+    # Electrical
     "sparking electric socket in train",
     "train charging socket not working",
     "broken charging port in train",
@@ -49,6 +39,7 @@ image_labels = [
     "train fan not working",
     "electric panel open in train",
     "burnt electrical wiring in train",
+    # Safety / Security
     "fight between passengers in train",
     "crowded train coach",
     "passenger harassment in train",
@@ -58,27 +49,18 @@ image_labels = [
     "passengers sitting near train door",
     "dangerous overcrowding in train",
     "passenger argument in train",
+    # Catering
     "stale railway food",
     "dirty pantry area in train",
     "spilled food in train coach",
     "unclean food container in train",
     "dirty food tray in train",
     "poor quality railway meal",
+    # Medical
     "passenger fainted in train",
     "injured passenger in train",
     "passenger lying on train floor",
     "medical emergency in train",
-]
-
-labels = [
-    "Cleanliness",
-    "Electrical",
-    "Infrastructure",
-    "Safety-Security",
-    "Staff",
-    "Catering",
-    "Medical",
-    "General",
 ]
 
 department_map = {
@@ -139,114 +121,30 @@ department_map = {
     "medical emergency in train": "Medical",
 }
 
+# Load image
+image = Image.open("test.jpg")
 
-# Request format
-class Complaint(BaseModel):
-    text: str
+# Process inputs
+inputs = processor(text=labels, images=image, return_tensors="pt", padding=True)
 
+# Run model
+with torch.no_grad():
+    outputs = model(**inputs)
 
-def predict(text):
+# Get probabilities
+probs = outputs.logits_per_image.softmax(dim=1)
 
-    text = text.lower().strip()
+# Get best match
+top_k = 3
 
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+top_indices = probs[0].topk(top_k).indices
 
-    with torch.no_grad():
-        outputs = model(**inputs)
+departments = set()
 
-    probs = torch.sigmoid(outputs.logits)[0]
+for idx in top_indices:
+    issue = labels[idx]
+    dept = department_map.get(issue)
+    if dept:
+        departments.add(dept)
 
-    threshold = 0.25
-
-    results = []
-
-    for i, p in enumerate(probs):
-        if p > threshold:
-            results.append(labels[i])
-
-    return results
-
-
-# Root endpoint
-@app.get("/")
-def home():
-    return {"message": "RailConnect AI Complaint API Running"}
-
-
-# Prediction endpoint
-@app.post("/predict")
-def predict_complaint(data: Complaint):
-
-    departments = predict(data.text)
-
-    return {"complaint": data.text, "departments": departments}
-
-
-@app.post("/predict-image")
-async def predict_image(file: UploadFile = File(...)):
-
-    image = Image.open(file.file)
-
-    inputs = clip_processor(
-        text=image_labels, images=image, return_tensors="pt", padding=True
-    )
-
-    with torch.no_grad():
-        outputs = clip_model(**inputs)
-
-    probs = outputs.logits_per_image.softmax(dim=1)
-
-    top_k = 3
-    top_indices = probs[0].topk(top_k).indices
-
-    departments = set()
-
-    for idx in top_indices:
-        issue = image_labels[idx]
-        dept = department_map.get(issue)
-
-        if dept:
-            departments.add(dept)
-
-    return {"departments": list(departments)}
-
-@app.post("/submit-complaint")
-async def submit_complaint(text: str = None, file: UploadFile = File(None)):
-
-    departments = set()
-
-    # ---- TEXT PREDICTION ----
-    if text:
-        text_result = predict(text)
-        for d in text_result:
-            departments.add(d)
-
-    # ---- IMAGE PREDICTION ----
-    if file:
-        image = Image.open(file.file)
-
-        inputs = clip_processor(
-            text=image_labels,
-            images=image,
-            return_tensors="pt",
-            padding=True
-        )
-
-        with torch.no_grad():
-            outputs = clip_model(**inputs)
-
-        probs = outputs.logits_per_image.softmax(dim=1)
-
-        top_k = 3
-        top_indices = probs[0].topk(top_k).indices
-
-        for idx in top_indices:
-            issue = image_labels[idx]
-            dept = department_map.get(issue)
-
-            if dept:
-                departments.add(dept)
-
-    return {
-        "departments": list(departments)
-    }
+print("Detected departments:", list(departments))
