@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Train, User, Mail, Phone, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 
 const Register = () => {
+  const { register } = useAuth()
   const navigate = useNavigate()
-  const [step, setStep]         = useState(1)
-  const [showPass, setShowPass] = useState(false)
+
+  const [step, setStep]               = useState(1)
+  const [showPass, setShowPass]       = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [loading, setLoading]   = useState(false)
+  const [loading, setLoading]         = useState(false)
 
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
@@ -27,7 +30,7 @@ const Register = () => {
     setStep(2)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.password || !form.confirmPassword) {
       toast.error('Please fill in all fields')
       return
@@ -41,11 +44,30 @@ const Register = () => {
       return
     }
     setLoading(true)
-    setTimeout(() => {
-      toast.success('Account created successfully!')
-      navigate('/login')
+    try {
+      // TODO: Uncomment when backend is ready
+      // const result = await register({
+      //   name:     form.name,
+      //   email:    form.email,
+      //   phone:    form.phone,
+      //   password: form.password,
+      //   role:     'passenger',
+      // })
+      // if (result.success) {
+      //   toast.success('Account created successfully!')
+      //   navigate('/login')
+      // } else {
+      //   toast.error(result.message || 'Registration failed')
+      // }
+
+      // TEMP: Remove below when backend is ready
+      toast.error('Backend not connected yet. Please use Frontend_Demo branch to test.')
+
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   const progress = step === 1 ? 50 : 100
@@ -86,7 +108,9 @@ const Register = () => {
           {step === 1 && (
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Full Name</label>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                  Full Name
+                </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input
@@ -100,7 +124,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Email Address</label>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                  Email Address
+                </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input
@@ -114,7 +140,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Phone Number</label>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                  Phone Number
+                </label>
                 <div className="flex gap-2">
                   <div className="flex items-center px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-rail-gray font-dm">
                     🇮🇳 +91
@@ -146,7 +174,9 @@ const Register = () => {
           {step === 2 && (
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Password</label>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                  Password
+                </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input
@@ -166,7 +196,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1.5">Confirm Password</label>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                  Confirm Password
+                </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input

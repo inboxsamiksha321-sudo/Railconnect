@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { API_BASE_URL, CATEGORIES } from '../../constants'
 import {
   Mic, MicOff, Camera, Image, X,
   Send, Globe, Train, Hash
@@ -7,112 +9,95 @@ import {
 import toast from 'react-hot-toast'
 
 const languages = [
-  { code: 'en-IN', label: 'English' },
-  { code: 'hi-IN', label: 'हिंदी (Hindi)' },
-  { code: 'mr-IN', label: 'मराठी (Marathi)' },
-  { code: 'ta-IN', label: 'தமிழ் (Tamil)' },
-  { code: 'te-IN', label: 'తెలుగు (Telugu)' },
-  { code: 'kn-IN', label: 'ಕನ್ನಡ (Kannada)' },
-  { code: 'ml-IN', label: 'മലയാളം (Malayalam)' },
-  { code: 'gu-IN', label: 'ગુજરાતી (Gujarati)' },
-  { code: 'pa-IN', label: 'ਪੰਜਾਬੀ (Punjabi)' },
-  { code: 'bn-IN', label: 'বাংলা (Bengali)' },
-  { code: 'or-IN', label: 'ଓଡ଼ିଆ (Odia)' },
-  { code: 'as-IN', label: 'অসমীয়া (Assamese)' },
-  { code: 'ur-IN', label: 'اردو (Urdu)' },
-  { code: 'sa-IN', label: 'संस्कृत (Sanskrit)' },
-  { code: 'ks-IN', label: 'کٲشُر (Kashmiri)' },
-  { code: 'sd-IN', label: 'سنڌي (Sindhi)' },
-  { code: 'ne-IN', label: 'नेपाली (Nepali)' },
-  { code: 'mni-IN', label: 'মৈতৈলোন্ (Manipuri)' },
-  { code: 'doi-IN', label: 'डोगरी (Dogri)' },
-  { code: 'brx-IN', label: 'बड़ो (Bodo)' },
-  { code: 'sat-IN', label: 'ᱥᱟᱱᱛᱟᱲᱤ (Santali)' },
-  { code: 'mai-IN', label: 'मैथिली (Maithili)' },
+  { code: 'en-IN', label: 'English'                   },
+  { code: 'hi-IN', label: 'हिंदी (Hindi)'              },
+  { code: 'mr-IN', label: 'मराठी (Marathi)'            },
+  { code: 'ta-IN', label: 'தமிழ் (Tamil)'              },
+  { code: 'te-IN', label: 'తెలుగు (Telugu)'            },
+  { code: 'kn-IN', label: 'ಕನ್ನಡ (Kannada)'            },
+  { code: 'ml-IN', label: 'മലയാളം (Malayalam)'         },
+  { code: 'gu-IN', label: 'ગુજરાતી (Gujarati)'         },
+  { code: 'pa-IN', label: 'ਪੰਜਾਬੀ (Punjabi)'           },
+  { code: 'bn-IN', label: 'বাংলা (Bengali)'            },
+  { code: 'or-IN', label: 'ଓଡ଼ିଆ (Odia)'               },
+  { code: 'as-IN', label: 'অসমীয়া (Assamese)'         },
+  { code: 'ur-IN', label: 'اردو (Urdu)'                },
+  { code: 'sa-IN', label: 'संस्कृत (Sanskrit)'         },
+  { code: 'ks-IN', label: 'کٲشُر (Kashmiri)'           },
+  { code: 'sd-IN', label: 'سنڌي (Sindhi)'              },
+  { code: 'ne-IN', label: 'नेपाली (Nepali)'            },
+  { code: 'mni-IN', label: 'মৈতৈলোন্ (Manipuri)'      },
+  { code: 'doi-IN', label: 'डोगरी (Dogri)'             },
+  { code: 'brx-IN', label: 'बड़ो (Bodo)'               },
+  { code: 'sat-IN', label: 'ᱥᱟᱱᱛᱟᱲᱤ (Santali)'       },
+  { code: 'mai-IN', label: 'मैथिली (Maithili)'         },
 ]
 
 const FileComplaint = () => {
-  const navigate      = useNavigate()
-  const videoRef      = useRef(null)
-  const streamRef     = useRef(null)
+  const navigate       = useNavigate()
+  const videoRef       = useRef(null)
+  const streamRef      = useRef(null)
   const recognitionRef = useRef(null)
-  const chunksRef     = useRef([])
+  const chunksRef      = useRef([])
 
-  const [language, setLanguage]       = useState('en-IN')
-  const [description, setDescription] = useState('')
-  const [isListening, setIsListening] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const [audioURL, setAudioURL]       = useState(null)
+  const [language, setLanguage]           = useState('en-IN')
+  const [description, setDescription]     = useState('')
+  const [isListening, setIsListening]     = useState(false)
+  const [isRecording, setIsRecording]     = useState(false)
+  const [audioBlob, setAudioBlob]         = useState(null)
+  const [audioURL, setAudioURL]           = useState(null)
   const [mediaRecorder, setMediaRecorder] = useState(null)
-  const [photos, setPhotos]           = useState([])
-  const [showCamera, setShowCamera]   = useState(false)
-  const [pnr, setPnr]                 = useState('')
-  const [coach, setCoach]             = useState('')
-  const [submitting, setSubmitting]   = useState(false)
+  const [photos, setPhotos]               = useState([])
+  const [photoFiles, setPhotoFiles]       = useState([])
+  const [showCamera, setShowCamera]       = useState(false)
+  const [pnr, setPnr]                     = useState('')
+  const [coach, setCoach]                 = useState('')
+  const [submitting, setSubmitting]       = useState(false)
 
-  // ── Speech to Text ──────────────────────────────────────────
+  // ── Speech to Text ────────────────────────────────────────
   const handleSpeech = () => {
-    // If already listening → STOP
     if (isListening) {
       recognitionRef.current?.stop()
       setIsListening(false)
       toast('Stopped listening ✅')
       return
     }
-
     const SR = window.SpeechRecognition ||
                window.webkitSpeechRecognition ||
                window.msSpeechRecognition
-
     if (!SR) {
       toast.error('Please use Google Chrome for voice input')
       return
     }
-
-    const recognition       = new SR()
-    recognition.lang        = language
-    recognition.continuous  = true
+    const recognition          = new SR()
+    recognition.lang           = language
+    recognition.continuous     = true
     recognition.interimResults = false
-
-    recognition.onstart = () => {
-      setIsListening(true)
-      toast.success('Listening... click Stop to finish 🎤')
-    }
-
+    recognition.onstart  = () => { setIsListening(true); toast.success('Listening... click Stop to finish 🎤') }
     recognition.onresult = (e) => {
-      // append each new result to description
       const newText = Array.from(e.results)
         .slice(e.resultIndex)
         .map(r => r[0].transcript)
         .join(' ')
       setDescription(prev => prev ? prev + ' ' + newText : newText)
     }
-
-    recognition.onend = () => {
-      setIsListening(false)
-    }
-
-    recognition.onerror = (e) => {
-      setIsListening(false)
-      if (e.error !== 'aborted') {
-        toast.error('Microphone error! Try again.')
-      }
-    }
-
+    recognition.onend   = () => setIsListening(false)
+    recognition.onerror = (e) => { setIsListening(false); if (e.error !== 'aborted') toast.error('Microphone error!') }
     recognitionRef.current = recognition
     recognition.start()
   }
 
-  // ── Voice Recording ─────────────────────────────────────────
+  // ── Voice Recording ───────────────────────────────────────
   const startRecording = async () => {
     try {
-      const stream   = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       chunksRef.current = []
       const recorder = new MediaRecorder(stream)
       recorder.ondataavailable = e => chunksRef.current.push(e.data)
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        setAudioBlob(blob)
         setAudioURL(URL.createObjectURL(blob))
       }
       recorder.start()
@@ -129,7 +114,7 @@ const FileComplaint = () => {
     setIsRecording(false)
   }
 
-  // ── Camera ──────────────────────────────────────────────────
+  // ── Camera ────────────────────────────────────────────────
   const openCamera = async () => {
     setShowCamera(true)
     try {
@@ -148,13 +133,15 @@ const FileComplaint = () => {
     canvas.width  = videoRef.current.videoWidth
     canvas.height = videoRef.current.videoHeight
     canvas.getContext('2d').drawImage(videoRef.current, 0, 0)
-    const url = canvas.toDataURL('image/jpeg')
-    if (photos.length < 5) {
-      setPhotos(prev => [...prev, url])
-      toast.success('Photo captured!')
-    } else {
-      toast.error('Max 5 photos allowed')
-    }
+    canvas.toBlob(blob => {
+      if (photos.length < 5) {
+        setPhotos(prev => [...prev, URL.createObjectURL(blob)])
+        setPhotoFiles(prev => [...prev, new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' })])
+        toast.success('Photo captured!')
+      } else {
+        toast.error('Max 5 photos allowed')
+      }
+    }, 'image/jpeg')
   }
 
   const closeCamera = () => {
@@ -172,24 +159,48 @@ const FileComplaint = () => {
       const reader = new FileReader()
       reader.onload = ev => setPhotos(prev => [...prev, ev.target.result])
       reader.readAsDataURL(file)
+      setPhotoFiles(prev => [...prev, file])
     })
   }
 
-  // ── Submit ───────────────────────────────────────────────────
-  const handleSubmit = () => {
+  const removePhoto = (i) => {
+    setPhotos(photos.filter((_, j) => j !== i))
+    setPhotoFiles(photoFiles.filter((_, j) => j !== i))
+  }
+
+  // ── Submit ────────────────────────────────────────────────
+  const handleSubmit = async () => {
     if (!description.trim() && !audioURL && photos.length === 0) {
       toast.error('Please add a description, voice recording, or photo')
       return
     }
     setSubmitting(true)
-    setTimeout(() => {
-      toast.success('Complaint filed! ID: RC00' + Math.floor(Math.random() * 9 + 4))
-      navigate('/passenger/complaints')
+    try {
+      // TODO: Uncomment when backend is ready
+      // const formData = new FormData()
+      // formData.append('description', description)
+      // formData.append('language',    language)
+      // formData.append('pnr',         pnr)
+      // formData.append('coach',       coach)
+      // if (audioBlob) formData.append('audio', audioBlob, 'recording.webm')
+      // photoFiles.forEach((file, i) => formData.append(`photo_${i}`, file))
+      //
+      // const res = await axios.post(`${API_BASE_URL}/complaints`, formData, {
+      //   headers: { 'Content-Type': 'multipart/form-data' }
+      // })
+      // toast.success(`Complaint filed! ID: ${res.data.id}`)
+      // navigate('/passenger/complaints')
+
+      // TEMP: Remove below when backend is ready
+      toast.error('Backend not connected yet. Please use Frontend_Demo branch to test.')
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit complaint')
+    } finally {
       setSubmitting(false)
-    }, 1000)
+    }
   }
 
-  // ── UI ───────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-rail-bg py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6">
@@ -240,7 +251,9 @@ const FileComplaint = () => {
           {isListening && (
             <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-red-50 rounded-xl">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-xs text-red-600 font-dm">Listening in {languages.find(l => l.code === language)?.label}... click Stop when done</span>
+              <span className="text-xs text-red-600 font-dm">
+                Listening in {languages.find(l => l.code === language)?.label}... click Stop when done
+              </span>
             </div>
           )}
           <textarea
@@ -272,9 +285,7 @@ const FileComplaint = () => {
                 <MicOff className="w-4 h-4" /> Stop Recording
               </button>
             )}
-            {audioURL && (
-              <audio controls src={audioURL} className="flex-1 h-10" />
-            )}
+            {audioURL && <audio controls src={audioURL} className="flex-1 h-10" />}
           </div>
         </div>
 
@@ -301,7 +312,7 @@ const FileComplaint = () => {
                 <div key={i} className="relative">
                   <img src={photo} alt="" className="w-20 h-20 object-cover rounded-xl" />
                   <button
-                    onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
+                    onClick={() => removePhoto(i)}
                     className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
                   >
                     <X className="w-3 h-3" />
@@ -383,8 +394,5 @@ const FileComplaint = () => {
     </div>
   )
 }
-
-
-
 
 export default FileComplaint

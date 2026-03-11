@@ -1,51 +1,17 @@
 import { useState } from 'react'
+import axios from 'axios'
+import { API_BASE_URL } from '../../constants'
 import {
   Search, Train, Calendar, MapPin,
   Clock, CheckCircle, TrendingUp, XCircle,
   AlertCircle, FileText
 } from 'lucide-react'
 
-const dummyComplaints = {
-  'RC001': {
-    id: 'RC001', title: 'Dirty coach in train 12345',
-    category: 'Cleanliness', status: 'pending', priority: 'normal',
-    date: '06 Mar 2026', train: '12345', from: 'Pune', to: 'Mumbai',
-    timeline: [
-      { status: 'Complaint Filed',   date: '06 Mar 2026 10:32 AM', done: true  },
-      { status: 'Under Review',      date: '06 Mar 2026 11:00 AM', done: true  },
-      { status: 'Assigned to Staff', date: 'Pending',              done: false },
-      { status: 'Resolved',          date: 'Pending',              done: false },
-    ],
-  },
-  'RC002': {
-    id: 'RC002', title: 'Rude behaviour by TTE officer',
-    category: 'Staff Behaviour', status: 'in_progress', priority: 'high',
-    date: '05 Mar 2026', train: '11028', from: 'Delhi', to: 'Trivandrum',
-    timeline: [
-      { status: 'Complaint Filed',   date: '05 Mar 2026 09:15 AM', done: true  },
-      { status: 'Under Review',      date: '05 Mar 2026 10:00 AM', done: true  },
-      { status: 'Assigned to Staff', date: '05 Mar 2026 02:30 PM', done: true  },
-      { status: 'Resolved',          date: 'In Progress',          done: false },
-    ],
-  },
-  'RC003': {
-    id: 'RC003', title: 'Food quality issue in pantry car',
-    category: 'Food & Catering', status: 'resolved', priority: 'normal',
-    date: '03 Mar 2026', train: '12701', from: 'Hyderabad', to: 'Mumbai',
-    timeline: [
-      { status: 'Complaint Filed',   date: '03 Mar 2026 08:00 AM', done: true },
-      { status: 'Under Review',      date: '03 Mar 2026 09:30 AM', done: true },
-      { status: 'Assigned to Staff', date: '03 Mar 2026 11:00 AM', done: true },
-      { status: 'Resolved',          date: '04 Mar 2026 03:00 PM', done: true },
-    ],
-  },
-}
-
 const statusConfig = {
-  pending:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <Clock className="w-4 h-4" />,       bar: 'w-1/4'  },
-  in_progress: { label: 'In Progress', bg: 'bg-blue-100',   text: 'text-blue-800',   icon: <TrendingUp className="w-4 h-4" />,  bar: 'w-2/3'  },
-  resolved:    { label: 'Resolved',    bg: 'bg-green-100',  text: 'text-green-800',  icon: <CheckCircle className="w-4 h-4" />, bar: 'w-full' },
-  rejected:    { label: 'Rejected',    bg: 'bg-red-100',    text: 'text-red-800',    icon: <XCircle className="w-4 h-4" />,     bar: 'w-full' },
+  pending:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <Clock className="w-4 h-4" />,       bar: 'w-1/4',  barColor: 'bg-yellow-400', percent: '25%'  },
+  in_progress: { label: 'In Progress', bg: 'bg-blue-100',   text: 'text-blue-800',   icon: <TrendingUp className="w-4 h-4" />,  bar: 'w-2/3',  barColor: 'bg-rail-mid',   percent: '65%'  },
+  resolved:    { label: 'Resolved',    bg: 'bg-green-100',  text: 'text-green-800',  icon: <CheckCircle className="w-4 h-4" />, bar: 'w-full', barColor: 'bg-rail-green', percent: '100%' },
+  rejected:    { label: 'Rejected',    bg: 'bg-red-100',    text: 'text-red-800',    icon: <XCircle className="w-4 h-4" />,     bar: 'w-full', barColor: 'bg-red-400',    percent: '0%'   },
 }
 
 const TrackComplaint = () => {
@@ -53,21 +19,31 @@ const TrackComplaint = () => {
   const [result, setResult]     = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
     setNotFound(false)
     setResult(null)
-    setTimeout(() => {
-      const found = dummyComplaints[query.toUpperCase().trim()]
-      if (found) {
-        setResult(found)
-      } else {
+    setError(null)
+    try {
+      // TODO: Uncomment when backend is ready
+      // const res = await axios.get(`${API_BASE_URL}/complaints/track/${query.toUpperCase().trim()}`)
+      // setResult(res.data)
+
+      // TEMP: Remove below when backend is ready
+      setNotFound(true)
+
+    } catch (err) {
+      if (err.response?.status === 404) {
         setNotFound(true)
+      } else {
+        setError('Something went wrong. Please try again.')
       }
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -105,7 +81,7 @@ const TrackComplaint = () => {
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="e.g. RC001, RC002..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm font-dm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm font-dm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all uppercase"
               />
             </div>
             <button
@@ -121,9 +97,20 @@ const TrackComplaint = () => {
             </button>
           </div>
           <p className="text-xs text-rail-gray font-dm mt-2">
-            💡 Try RC001, RC002 or RC003 for demo
+            💡 Enter your complaint ID received after filing
           </p>
         </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-white rounded-2xl border border-red-200 p-8 text-center mb-4">
+            <AlertCircle className="w-12 h-12 text-red-300 mx-auto mb-3" />
+            <p className="font-syne font-bold text-gray-700 text-lg mb-1">
+              Something went wrong
+            </p>
+            <p className="text-sm text-rail-gray font-dm">{error}</p>
+          </div>
+        )}
 
         {/* Not Found */}
         {notFound && (
@@ -133,7 +120,8 @@ const TrackComplaint = () => {
               Complaint Not Found
             </p>
             <p className="text-sm text-rail-gray font-dm">
-              No complaint found with ID <span className="font-bold text-red-500">"{query}"</span>.
+              No complaint found with ID{' '}
+              <span className="font-bold text-red-500">"{query}"</span>.
               Please check the ID and try again.
             </p>
           </div>
@@ -141,7 +129,7 @@ const TrackComplaint = () => {
 
         {/* Result */}
         {result && (() => {
-          const s = statusConfig[result.status]
+          const s = statusConfig[result.status] || statusConfig.pending
           return (
             <div className="flex flex-col gap-4">
 
@@ -170,18 +158,10 @@ const TrackComplaint = () => {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-rail-gray font-dm">Resolution Progress</span>
-                    <span className="text-xs font-semibold text-rail-blue font-dm">
-                      {result.status === 'pending'     ? '25%'  :
-                       result.status === 'in_progress' ? '65%'  :
-                       result.status === 'resolved'    ? '100%' : '0%'}
-                    </span>
+                    <span className="text-xs font-semibold text-rail-blue font-dm">{s.percent}</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className={`h-2 rounded-full transition-all duration-500 ${s.bar} ${
-                      result.status === 'resolved'    ? 'bg-rail-green' :
-                      result.status === 'in_progress' ? 'bg-rail-mid'   :
-                      result.status === 'rejected'    ? 'bg-red-400'    : 'bg-yellow-400'
-                    }`} />
+                    <div className={`h-2 rounded-full transition-all duration-500 ${s.bar} ${s.barColor}`} />
                   </div>
                 </div>
 
@@ -219,7 +199,7 @@ const TrackComplaint = () => {
                   Complaint Timeline
                 </h3>
                 <div className="flex flex-col">
-                  {result.timeline.map((step, i) => (
+                  {result.timeline?.map((step, i) => (
                     <div key={i} className="flex gap-4">
                       <div className="flex flex-col items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${

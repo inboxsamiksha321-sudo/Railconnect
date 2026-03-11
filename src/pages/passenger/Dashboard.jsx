@@ -1,32 +1,55 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import axios from 'axios'
+import { API_BASE_URL, STATUS_CONFIG } from '../../constants'
 import {
   PlusCircle, FileText, Bell, Search,
   TrendingUp, CheckCircle, Clock, AlertCircle,
   ChevronRight, Sparkles, Megaphone
 } from 'lucide-react'
 
-const recentComplaints = [
-  { id: 'RC001', title: 'Dirty coach in train 12345',       category: 'Cleanliness',    status: 'pending',     date: '06 Mar 2026' },
-  { id: 'RC002', title: 'Rude behaviour by TTE officer',    category: 'Staff Behaviour', status: 'in_progress', date: '05 Mar 2026' },
-  { id: 'RC003', title: 'Food quality issue in pantry car', category: 'Food & Catering', status: 'resolved',    date: '03 Mar 2026' },
-]
-
-const statusConfig = {
-  pending:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800' },
-  in_progress: { label: 'In Progress', bg: 'bg-blue-100',   text: 'text-blue-800'  },
-  resolved:    { label: 'Resolved',    bg: 'bg-green-100',  text: 'text-green-800' },
-  rejected:    { label: 'Rejected',    bg: 'bg-red-100',    text: 'text-red-800'   },
-}
-
 const Dashboard = () => {
   const { user } = useAuth()
 
-  const stats = [
-    { label: 'Total Filed',  value: '8', icon: <FileText className="w-5 h-5" />,    color: 'blue'   },
-    { label: 'Pending',      value: '3', icon: <Clock className="w-5 h-5" />,        color: 'yellow' },
-    { label: 'In Progress',  value: '2', icon: <TrendingUp className="w-5 h-5" />,   color: 'orange' },
-    { label: 'Resolved',     value: '3', icon: <CheckCircle className="w-5 h-5" />,  color: 'green'  },
+  const [recentComplaints, setRecentComplaints] = useState([])
+  const [stats, setStats]                       = useState({ total: 0, pending: 0, in_progress: 0, resolved: 0 })
+  const [latestUpdate, setLatestUpdate]         = useState(null)
+  const [loading, setLoading]                   = useState(true)
+  const [error, setError]                       = useState(null)
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      setLoading(true)
+      try {
+        // TODO: Uncomment when backend is ready
+        // const [complaintsRes, statsRes] = await Promise.all([
+        //   axios.get(`${API_BASE_URL}/complaints/recent?limit=3`),
+        //   axios.get(`${API_BASE_URL}/complaints/stats`),
+        // ])
+        // setRecentComplaints(complaintsRes.data)
+        // setStats(statsRes.data)
+        // const resolved = complaintsRes.data.find(c => c.status === 'resolved')
+        // if (resolved) setLatestUpdate(resolved)
+
+        // TEMP: Remove below when backend is ready
+        setRecentComplaints([])
+        setStats({ total: 0, pending: 0, in_progress: 0, resolved: 0 })
+
+      } catch (err) {
+        setError('Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDashboard()
+  }, [])
+
+  const statCards = [
+    { label: 'Total Filed', value: stats.total,       icon: <FileText className="w-5 h-5" />,   color: 'blue'   },
+    { label: 'Pending',     value: stats.pending,     icon: <Clock className="w-5 h-5" />,       color: 'yellow' },
+    { label: 'In Progress', value: stats.in_progress, icon: <TrendingUp className="w-5 h-5" />,  color: 'orange' },
+    { label: 'Resolved',    value: stats.resolved,    icon: <CheckCircle className="w-5 h-5" />, color: 'green'  },
   ]
 
   const colorMap = {
@@ -62,7 +85,7 @@ const Dashboard = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {stats.map((stat, i) => {
+          {statCards.map((stat, i) => {
             const c = colorMap[stat.color]
             return (
               <div key={i} className={`bg-white rounded-xl p-5 border ${c.border} shadow-sm flex items-start gap-3`}>
@@ -71,7 +94,10 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-xs text-rail-gray font-dm">{stat.label}</p>
-                  <p className="text-2xl font-syne font-bold text-rail-blue mt-0.5">{stat.value}</p>
+                  {loading
+                    ? <div className="w-8 h-6 bg-gray-200 rounded animate-pulse mt-0.5" />
+                    : <p className="text-2xl font-syne font-bold text-rail-blue mt-0.5">{stat.value}</p>
+                  }
                 </div>
               </div>
             )
@@ -103,11 +129,11 @@ const Dashboard = () => {
               <h3 className="font-syne font-bold text-rail-blue mb-4">Quick Actions</h3>
               <div className="flex flex-col gap-2">
                 {[
-                  { icon: <FileText className="w-4 h-4" />,    label: 'View My Complaints', path: '/passenger/complaints'     },
-                  { icon: <Bell className="w-4 h-4" />,        label: 'Notifications',      path: '/passenger/notifications'  },
-                  { icon: <Search className="w-4 h-4" />,      label: 'Track Complaint',    path: '/track'                    },
-                  { icon: <Megaphone className="w-4 h-4" />,   label: 'Public Notices',     path: '/notices'                  },
-                  { icon: <AlertCircle className="w-4 h-4" />, label: 'My Profile',         path: '/passenger/profile'        },
+                  { icon: <FileText className="w-4 h-4" />,    label: 'View My Complaints', path: '/passenger/complaints'    },
+                  { icon: <Bell className="w-4 h-4" />,        label: 'Notifications',      path: '/passenger/notifications' },
+                  { icon: <Search className="w-4 h-4" />,      label: 'Track Complaint',    path: '/track'                   },
+                  { icon: <Megaphone className="w-4 h-4" />,   label: 'Public Notices',     path: '/notices'                 },
+                  { icon: <AlertCircle className="w-4 h-4" />, label: 'My Profile',         path: '/passenger/profile'       },
                 ].map((action, i) => (
                   <Link
                     key={i}
@@ -143,30 +169,65 @@ const Dashboard = () => {
                   View All →
                 </Link>
               </div>
-              <div className="flex flex-col gap-3">
-                {recentComplaints.map((c, i) => {
-                  const s = statusConfig[c.status]
-                  return (
-                    <Link
-                      key={i}
-                      to={`/passenger/complaints/${c.id}`}
-                      className="flex items-center justify-between p-3 rounded-xl hover:bg-rail-bg transition-all group"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono text-rail-gray">#{c.id}</span>
-                          <span className="text-xs text-rail-gray">{c.category}</span>
+
+              {/* Loading State */}
+              {loading && (
+                <div className="flex flex-col gap-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && !loading && (
+                <div className="text-center py-6">
+                  <AlertCircle className="w-8 h-8 text-red-300 mx-auto mb-2" />
+                  <p className="text-sm text-red-400 font-dm">{error}</p>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!loading && !error && recentComplaints.length === 0 && (
+                <div className="text-center py-8">
+                  <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-rail-gray font-dm">No complaints filed yet</p>
+                  <Link
+                    to="/passenger/complaints/new"
+                    className="text-xs text-rail-mid font-dm hover:underline mt-1 inline-block"
+                  >
+                    File your first complaint →
+                  </Link>
+                </div>
+              )}
+
+              {/* Complaints List */}
+              {!loading && !error && recentComplaints.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {recentComplaints.map((c, i) => {
+                    const s = STATUS_CONFIG[c.status]
+                    return (
+                      <Link
+                        key={i}
+                        to={`/passenger/complaints/${c.id}`}
+                        className="flex items-center justify-between p-3 rounded-xl hover:bg-rail-bg transition-all group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono text-rail-gray">#{c.id}</span>
+                            <span className="text-xs text-rail-gray">{c.category}</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-700 truncate">{c.title}</p>
+                          <p className="text-xs text-rail-gray font-dm mt-0.5">{c.date}</p>
                         </div>
-                        <p className="text-sm font-medium text-gray-700 truncate">{c.title}</p>
-                        <p className="text-xs text-rail-gray font-dm mt-0.5">{c.date}</p>
-                      </div>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-3 flex-shrink-0 ${s.bg} ${s.text}`}>
-                        {s.label}
-                      </span>
-                    </Link>
-                  )
-                })}
-              </div>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-3 flex-shrink-0 ${s.bg} ${s.text}`}>
+                          {s.label}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* AI Info Card */}
@@ -185,20 +246,22 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Update Card */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-rail-green flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-syne font-bold text-green-800 mb-1">
-                    Complaint RC003 Resolved!
-                  </h3>
-                  <p className="text-green-700 text-sm font-dm">
-                    Your complaint about food quality has been resolved by the catering department.
-                  </p>
+            {/* Latest Update from API */}
+            {latestUpdate && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-rail-green flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-syne font-bold text-green-800 mb-1">
+                      Complaint {latestUpdate.id} Resolved!
+                    </h3>
+                    <p className="text-green-700 text-sm font-dm">
+                      {latestUpdate.resolution || 'Your complaint has been resolved.'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
           </div>
         </div>

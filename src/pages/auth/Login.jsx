@@ -4,10 +4,6 @@ import { Train, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 
-const testUsers = [
-  { email: 'passenger@test.com', password: '123456', role: 'passenger', name: 'Raj Patel' },
-]
-
 const Login = () => {
   const { login } = useAuth()
   const navigate  = useNavigate()
@@ -16,25 +12,30 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.email || !form.password) {
       toast.error('Please fill in all fields')
       return
     }
     setLoading(true)
-    setTimeout(() => {
-      const user = testUsers.find(
-        u => u.email === form.email && u.password === form.password
-      )
-      if (user) {
-        login(user)
-        toast.success(`Welcome back, ${user.name}!`)
-        navigate(`/${user.role}/dashboard`)
-      } else {
-        toast.error('Invalid email or password')
-      }
+    try {
+      // TODO: Uncomment when backend is ready
+      // const result = await login(form.email, form.password)
+      // if (result.success) {
+      //   toast.success(`Welcome back!`)
+      //   navigate('/passenger/dashboard')
+      // } else {
+      //   toast.error(result.message || 'Invalid email or password')
+      // }
+
+      // TEMP: Remove below block when backend is ready
+      toast.error('Backend not connected yet. Please use Frontend_Demo branch to test.')
+
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -88,21 +89,22 @@ const Login = () => {
           <h2 className="font-syne font-bold text-rail-blue text-3xl mb-1">Welcome back</h2>
           <p className="text-rail-gray font-dm text-sm mb-8">Sign in to your account</p>
 
-          {/* Test Credentials */}
-          <div className="bg-rail-light border border-blue-200 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-rail-blue mb-2">🧪 Test Credentials:</p>
-            <button
-                onClick={() => setForm({ email: 'passenger@test.com', password: '123456' })}
-              className="w-full text-left text-xs text-rail-gray font-dm hover:text-rail-blue transition-colors py-0.5"
-            >
-              <span className="font-medium">Email:</span> passenger@test.com / 123456
-            </button>
+          {/* Backend Notice */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+            <p className="text-xs font-semibold text-yellow-700 mb-1">
+              ⚠️ Backend Integration Pending
+            </p>
+            <p className="text-xs text-yellow-600 font-dm">
+              This branch is backend ready. Connect your API to enable login.
+            </p>
           </div>
 
           {/* Form */}
           <div className="flex flex-col gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Email</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                Email
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                 <input
@@ -117,7 +119,9 @@ const Login = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Password</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                Password
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                 <input

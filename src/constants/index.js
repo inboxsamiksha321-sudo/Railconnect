@@ -20,36 +20,38 @@ export const STATUS_CONFIG = {
 
 export const CATEGORIES = [
   'Cleanliness',
-  'Food & Catering',
-  'Staff Behaviour',
+  'Electrical',
+  'Infrastructure',
   'Safety & Security',
-  'Ticketing',
-  'Medical Assistance',
-  'Electrical Issues',
-  'Other',
+  'Staff',
+  'Catering',
+  'Medical',
+  'General',
 ]
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 export const NAV_LINKS = {
   public: [
-    { label: 'Home',          path: '/'        },
-    { label: 'Track',         path: '/track'   },
-    { label: 'Notices',       path: '/notices' },
-    { label: 'About',         path: '/about'   },
+    { label: 'Home',           path: '/'        },
+    { label: 'Track',          path: '/track'   },
+    { label: 'Notices',        path: '/notices' },
+    { label: 'About',          path: '/about'   },
   ],
   passenger: [
-    { label: 'Dashboard',     path: '/passenger/dashboard'      },
-    { label: 'File Complaint',path: '/passenger/complaints/new' },
-    { label: 'My Complaints', path: '/passenger/complaints'     },
-    { label: 'Notifications', path: '/passenger/notifications'  },
+    { label: 'Dashboard',      path: '/passenger/dashboard'      },
+    { label: 'File Complaint', path: '/passenger/complaints/new' },
+    { label: 'My Complaints',  path: '/passenger/complaints'     },
+    { label: 'Notifications',  path: '/passenger/notifications'  },
   ],
   staff: [
-    { label: 'Dashboard',     path: '/staff/dashboard'          },
-    { label: 'Complaints',    path: '/staff/complaints'         },
+    { label: 'Dashboard',      path: '/staff/dashboard'          },
+    { label: 'Complaints',     path: '/staff/complaints'         },
   ],
   admin: [
-    { label: 'Dashboard',     path: '/admin/dashboard'          },
-    { label: 'Complaints',    path: '/admin/complaints'         },
-    { label: 'Staff',         path: '/admin/staff'              },
-    { label: 'Reports',       path: '/admin/reports'            },
+    { label: 'Dashboard',      path: '/admin/dashboard'          },
+    { label: 'Complaints',     path: '/admin/complaints'         },
+    { label: 'Staff',          path: '/admin/staff'              },
+    { label: 'Reports',        path: '/admin/reports'            },
   ],
 }
