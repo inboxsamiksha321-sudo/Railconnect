@@ -1,6 +1,10 @@
 import torch
+import math
+import os
+from db import conn, cursor
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from fastapi import FastAPI
+from fastapi import Form
 from pydantic import BaseModel
 from fastapi import UploadFile, File
 from PIL import Image
@@ -145,6 +149,80 @@ class Complaint(BaseModel):
     text: str
 
 
+# Get train_id from train_no
+def get_train_id(train_no):
+    cursor.execute(
+        """
+        SELECT train_id FROM trains WHERE train_no = %s
+    """,
+        (train_no,),
+    )
+
+    result = cursor.fetchone()
+    return result[0] if result else None
+
+
+# Get route of train
+def get_train_route(train_id):
+    cursor.execute(
+        """
+        SELECT tr.station_id, tr.stop_number, s.latitude, s.longitude
+        FROM train_routes tr
+        JOIN stations s ON tr.station_id = s.station_id
+        WHERE tr.train_id = %s
+        ORDER BY tr.stop_number
+    """,
+        (train_id,),
+    )
+
+    return cursor.fetchall()
+
+
+# Distance (simple)
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371  # Earth radius in km
+
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.asin(math.sqrt(a))
+
+    return R * c
+
+
+# Find current station
+def find_current_station(route, user_lat, user_long):
+    min_dist = float("inf")
+    current = None
+
+    for station in route:
+        station_id, stop_no, lat, lon = station
+        dist = calculate_distance(user_lat, user_long, lat, lon)
+
+        if dist < min_dist:
+            min_dist = dist
+            current = station
+
+    return current
+
+
+# Find next station
+def find_next_station(route, current_station):
+    current_stop = current_station[1]
+
+    for station in route:
+        if station[1] == current_stop + 1:
+            return station
+
+    return current_station  # last station case
+
+
 def predict(text):
 
     text = text.lower().strip()
@@ -210,43 +288,140 @@ async def predict_image(file: UploadFile = File(...)):
 
     return {"departments": list(departments)}
 
+
 @app.post("/submit-complaint")
-async def submit_complaint(text: str = None, file: UploadFile = File(None)):
+async def submit_complaint(
+    train_no: str = Form(...),
+    user_lat: float = Form(...),
+    user_long: float = Form(...),
+    text: str = Form(None),
+    file: UploadFile = File(None),
+):
 
     departments = set()
 
-    # ---- TEXT PREDICTION ----
+    # ---- TEXT ----
     if text:
-        text_result = predict(text)
-        for d in text_result:
+        for d in predict(text):
             departments.add(d)
 
-    # ---- IMAGE PREDICTION ----
+    # ---- IMAGE ----
     if file:
         image = Image.open(file.file)
 
         inputs = clip_processor(
-            text=image_labels,
-            images=image,
-            return_tensors="pt",
-            padding=True
+            text=image_labels, images=image, return_tensors="pt", padding=True
         )
 
         with torch.no_grad():
             outputs = clip_model(**inputs)
 
         probs = outputs.logits_per_image.softmax(dim=1)
-
-        top_k = 3
-        top_indices = probs[0].topk(top_k).indices
+        top_indices = probs[0].topk(3).indices
 
         for idx in top_indices:
             issue = image_labels[idx]
             dept = department_map.get(issue)
-
             if dept:
                 departments.add(dept)
 
+    # ❗ FIX 1: Ensure at least one department
+    if not departments:
+        departments.add("General")
+
+    # ---- TRAIN ROUTING ----
+    train_id = get_train_id(train_no)
+
+    if not train_id:
+        return {"error": "Invalid train number"}
+
+    route = get_train_route(train_id)
+
+    # ❗ FIX 2: Handle empty route
+    if not route:
+        return {"error": "No route found for this train"}
+
+    current_station = find_current_station(route, user_lat, user_long)
+
+    # ❗ FIX 3: Safety check
+    if not current_station:
+        return {"error": "Could not determine current station"}
+
+    next_station = find_next_station(route, current_station)
+    next_station_id = next_station[0]
+
+    # ---- INSERT COMPLAINT ----
+    cursor.execute(
+        """
+        INSERT INTO complaints (train_id, complaint_text, user_lat, user_long, assigned_station_id)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING complaint_id;
+    """,
+        (train_id, text, user_lat, user_long, next_station_id),
+    )
+
+    complaint_id = cursor.fetchone()[0]
+
+    # ---- SAVE IMAGE ----
+
+    if file and file.filename != "":
+
+        # create uploads folder if not exists
+        os.makedirs("uploads", exist_ok=True)
+
+        file_path = f"uploads/{complaint_id}_{file.filename}"
+
+        file.file.seek(0)
+
+        with open(file_path, "wb") as f:
+            f.write(file.file.read())
+
+        # insert into DB
+        cursor.execute(
+            """
+            INSERT INTO complaint_media (complaint_id, media_type, media_url)
+            VALUES (%s, %s, %s)
+        """,
+            (complaint_id, "image", file_path),
+        )
+
+    # ---- INSERT DEPARTMENTS ----
+    for dept in departments:
+        cursor.execute(
+            """
+            SELECT department_id FROM departments WHERE department_name = %s
+        """,
+            (dept,),
+        )
+
+        result = cursor.fetchone()
+
+        # ❗ FIX 4: Avoid crash if department not found
+        if not result:
+            continue
+
+        dept_id = result[0]
+
+        cursor.execute(
+            """
+            INSERT INTO complaint_departments (complaint_id, department_id)
+            VALUES (%s, %s)
+        """,
+            (complaint_id, dept_id),
+        )
+
+        cursor.execute(
+            """
+            INSERT INTO complaint_assignments (complaint_id, station_id, department_id)
+            VALUES (%s, %s, %s)
+        """,
+            (complaint_id, next_station_id, dept_id),
+        )
+
+    conn.commit()
+
     return {
-        "departments": list(departments)
+        "complaint_id": complaint_id,
+        "departments": list(departments),
+        "assigned_station_id": next_station_id,
     }
