@@ -2,6 +2,7 @@ from fastapi import FastAPI, Form, UploadFile, File
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
 from services.db_service import get_train_id, get_train_route, conn, cursor
+from typing import Optional
 import os
 
 app = FastAPI()
@@ -13,8 +14,8 @@ def home():
 @app.post("/submit-complaint")
 async def submit_complaint(  # gets complaint INFO
     train_no: str = Form(...),
-    user_lat: float = Form(...),
-    user_long: float = Form(...),
+    user_lat: Optional[float] = Form(None),
+    user_long: Optional[float] = Form(None),
     text: str = Form(None),
     file: UploadFile = File(None),
 ):
@@ -41,16 +42,21 @@ async def submit_complaint(  # gets complaint INFO
 
     if not route:
         return {"error": "No route found for this train"}
+    
+    
+    if user_lat is None or user_long is None:        # if no location shared, route to the last station
+        last_station = route[-1]
+        next_station_id = last_station[0]
 
-        # call find_current_station
-    current_station = find_current_station(route, user_lat, user_long)
+    else:     # call find_current_station
+        current_station = find_current_station(route, user_lat, user_long)
 
-    if not current_station:
-        return {"error": "Could not determine current station"}
+        if not current_station:
+            return {"error": "Could not determine current station"}
 
         # call find_next_station
-    next_station = find_next_station(route, current_station)
-    next_station_id = next_station[0]
+        next_station = find_next_station(route, current_station)
+        next_station_id = next_station[0]
 
     # insert into COMPLAINTS
     cursor.execute(
