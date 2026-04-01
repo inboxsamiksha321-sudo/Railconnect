@@ -11,7 +11,7 @@ conn = psycopg2.connect(
 cursor = conn.cursor()
 
 
-def get_train_id(train_no):                   # get train_id from train_no 
+def get_train_id(train_no):  # get train_id from train_no
     cursor.execute(
         """
         SELECT train_id FROM trains WHERE train_no = %s
@@ -23,18 +23,36 @@ def get_train_id(train_no):                   # get train_id from train_no
     return result[0] if result else None
 
 
-def get_train_route(train_id):                # get train_route 
+def get_active_journey(train_id, current_time):
+    cursor.execute(
+        """
+        SELECT journey_id, route_id
+        FROM journeys
+        WHERE train_id = %s
+        AND %s BETWEEN start_time AND end_time
+        LIMIT 1
+        """,
+        (train_id, current_time),
+    )
+
+    result = cursor.fetchone()
+
+    if not result:
+        return None
+
+    return {"journey_id": result[0], "route_id": result[1]}
+
+
+def get_train_route(route_id):
     cursor.execute(
         """
         SELECT tr.station_id, tr.stop_number, s.latitude, s.longitude
         FROM train_routes tr
         JOIN stations s ON tr.station_id = s.station_id
-        WHERE tr.train_id = %s
+        WHERE tr.route_id = %s
         ORDER BY tr.stop_number
-    """,
-        (train_id,),
+        """,
+        (route_id,),
     )
 
     return cursor.fetchall()
-
-

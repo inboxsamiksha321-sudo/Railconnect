@@ -2,14 +2,20 @@ from fastapi import FastAPI, Form, UploadFile, File
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
 from services.db_service import get_train_id, get_train_route, conn, cursor
+from services.db_service import get_active_journey
 from typing import Optional
+from datetime import datetime
 import os
 
+current_time = datetime.now()
+
 app = FastAPI()
+
 
 @app.get("/")
 def home():
     return {"message": "RailConnect API Running"}
+
 
 @app.post("/submit-complaint")
 async def submit_complaint(  # gets complaint INFO
@@ -37,26 +43,44 @@ async def submit_complaint(  # gets complaint INFO
 
     if not train_id:
         return {"error": "Invalid train number"}
+    print("Train ID:", train_id)
 
-    route = get_train_route(train_id)  # call get_train_route
+    journey = get_active_journey(train_id, current_time)
+
+    if not journey:
+        return {"error": "Train is not running currently"}
+    print("Journey:", journey)
+
+    route_id = journey["route_id"]
+    print("Route ID:", route_id)
+
+    route = get_train_route(route_id)  # call get_train_route
 
     if not route:
         return {"error": "No route found for this train"}
-    
-    
-    if user_lat is None or user_long is None:        # if no location shared, route to the last station
+    print("Route:", route)
+
+    print("User Location:", user_lat, user_long)
+
+    if (
+        user_lat is None or user_long is None
+    ):  # if no location shared, route to the last station
         last_station = route[-1]
         next_station_id = last_station[0]
 
-    else:     # call find_current_station
+    else:  # call find_current_station
         current_station = find_current_station(route, user_lat, user_long)
 
         if not current_station:
             return {"error": "Could not determine current station"}
+        print("Current Station:", current_station)
 
         # call find_next_station
         next_station = find_next_station(route, current_station)
         next_station_id = next_station[0]
+
+        print("Next Station:", next_station)
+        print("Assigned Station ID:", next_station_id)
 
     # insert into COMPLAINTS
     cursor.execute(
