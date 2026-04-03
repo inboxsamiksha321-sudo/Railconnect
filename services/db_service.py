@@ -29,7 +29,7 @@ def get_active_journey(train_id, current_time):
         SELECT journey_id, route_id
         FROM journeys
         WHERE train_id = %s
-        AND %s BETWEEN start_time AND end_time
+        AND %s::time BETWEEN start_time::time AND end_time::time
         LIMIT 1
         """,
         (train_id, current_time),
