@@ -211,6 +211,12 @@ async def whatsapp_webhook(request: Request):
     train_id = get_train_id(train_no)
 
     if not train_id:
+        client.messages.create(
+            from_="whatsapp:+14155238886",
+            body="No train id found for this train no. INVALID train no.",
+            to=sender,
+        )
+        print("No train id found for this train no. INVALID train no.")
         return {"error": "Invalid train number"}
     print("Train ID:", train_id)
 
@@ -219,7 +225,14 @@ async def whatsapp_webhook(request: Request):
     journey = get_active_journey(train_id, current_time)
 
     if not journey:
+        client.messages.create(
+            from_="whatsapp:+14155238886",
+            body="The train is not currently running",
+            to=sender,
+        )
+        print("error Train not running")
         return {"error": "Train not running"}
+    
     print("Journey:", journey)
 
     route_id = journey["route_id"]
@@ -228,7 +241,14 @@ async def whatsapp_webhook(request: Request):
     route = get_train_route(route_id)
 
     if not route:
+        client.messages.create(
+            from_="whatsapp:+14155238886",
+            body="no route found for this train",
+            to=sender,
+        )
+        print("no route found for this train")
         return {"error": "No route found"}
+    
     print("Route:", route)
 
     # ---- NO LOCATION → LAST STATION ----
