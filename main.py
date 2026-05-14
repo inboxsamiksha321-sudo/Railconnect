@@ -6,12 +6,18 @@ from services.db_service import get_active_journey
 from typing import Optional
 from datetime import datetime
 from twilio.rest import Client
+from supabase import create_client
 import os
 import re
 
 current_time = datetime.now()
 
 app = FastAPI()
+
+supabase = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_KEY")
+)
 
 account_sid = os.getenv("TWILIO_SID")
 auth_token = os.getenv("TWILIO_AUTH")
@@ -37,6 +43,17 @@ async def submit_complaint(  # gets complaint INFO
     text: str = Form(None),
     file: UploadFile = File(None),
 ):
+    
+    content_type = file.content_type
+
+    if "image" in content_type:
+        media_type = "image"
+    elif "audio" in content_type:
+        media_type = "audio"
+    elif "video" in content_type:
+        media_type = "video"
+    else:
+        media_type = "other"
 
     departments = set()
 
@@ -44,7 +61,7 @@ async def submit_complaint(  # gets complaint INFO
         for d in predict(text):
             departments.add(d)
 
-    if file:  # calls image classification
+    if file and "image" in file.content_type:    # calls image classification
         for d in predict_image(file):
             departments.add(d)
 
@@ -109,15 +126,16 @@ async def submit_complaint(  # gets complaint INFO
     # save media file to storage
     if file and file.filename != "":
 
-        # create uploads folder if not exists
-        os.makedirs("uploads", exist_ok=True)
+        file_bytes = await file.read()
 
-        file_path = f"uploads/{complaint_id}_{file.filename}"
+        file_name = f"{complaint_id}_{file.filename}"
 
-        file.file.seek(0)
+        supabase.storage.from_("complaint-media").upload(
+            file_name,
+            file_bytes
+        )
 
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
+        file_url = supabase.storage.from_("complaint-media").get_public_url(file_name)
 
             # insert into COMPLAINT_MEDIA
         cursor.execute(
@@ -125,7 +143,8 @@ async def submit_complaint(  # gets complaint INFO
             INSERT INTO complaint_media (complaint_id, media_type, media_url)
             VALUES (%s, %s, %s)
         """,
-            (complaint_id, "image", file_path),
+
+            (complaint_id, media_type, file_url)
         )
 
         # insert into COMPLAINT_DEPARTMENTS
