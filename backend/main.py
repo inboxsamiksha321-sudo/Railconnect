@@ -5,8 +5,6 @@ from datetime import datetime
 from collector import fetch_tweets
 
 from processor import (
-    is_railway_related,
-    is_complaint,
     extract_train,
     extract_station,
     classify
@@ -28,7 +26,7 @@ async def tweet_worker():
 
         try:
 
-            print("\nChecking for new railway complaints...")
+            print("\nChecking for new Railconnect complaints...")
 
             tweets = fetch_tweets()
 
@@ -44,24 +42,10 @@ async def tweet_worker():
 
                 processed_tweet_ids.add(tweet_id)
 
-                is_direct_tag = "@railconnecth14" in text.lower()
-
-                if not is_direct_tag:
-
-                    if not is_railway_related(text):
-                        continue
-
-                    if not is_complaint(text):
-                        continue
-
                 data = {
                     "tweet_id": tweet_id,
 
-                    "source": (
-                        "direct_tag"
-                        if is_direct_tag
-                        else "public_monitoring"
-                    ),
+                    "source": "direct_tag",
 
                     "tweet": text,
 
@@ -94,7 +78,7 @@ async def tweet_worker():
 @app.on_event("startup")
 async def startup():
 
-    print("Starting Railway Complaint Collector Backend...")
+    print("Starting Railconnect Complaint Collector Backend...")
 
     asyncio.create_task(tweet_worker())
 
@@ -103,7 +87,7 @@ async def startup():
 def home():
 
     return {
-        "message": "Railway Complaint Backend Running"
+        "message": "Railconnect Backend Running"
     }
 
 

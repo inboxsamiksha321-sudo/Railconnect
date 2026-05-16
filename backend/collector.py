@@ -2,34 +2,14 @@ import tweepy
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
 load_dotenv()
 
-# Get Bearer Token
 BEARER_TOKEN = os.getenv("BEARER_TOKEN")
 
-# Twitter Client
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
+QUERY = "@RailconnectH14 -is:retweet lang:en"
 
-QUERY = """
-(
-(
-(train OR railway OR irctc OR railmadad)
-(delay OR late OR dirty OR refund OR cancelled OR issue OR complaint)
-)
-OR
-@RailconnectH14
-OR
-@RailMinIndia
-OR
-@IRCTCofficial
-OR
-@RailMadad
-)
--is:retweet lang:en
-"""
-# Store latest fetched tweet ID
 last_seen_id = None
 
 
@@ -58,7 +38,6 @@ def fetch_tweets():
                     "created_at": str(tweet.created_at)
                 })
 
-            # Save newest tweet ID
             last_seen_id = response.data[0].id
 
         return tweets
