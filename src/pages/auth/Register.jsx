@@ -1,81 +1,88 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Train, User, Mail, Phone, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
-import toast from 'react-hot-toast'
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Train,
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  ChevronRight,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 const Register = () => {
-  const { register } = useAuth()
-  const navigate = useNavigate()
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
-  const [step, setStep]               = useState(1)
-  const [showPass, setShowPass]       = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [loading, setLoading]         = useState(false)
+  const [step, setStep] = useState(1);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    name: '', email: '', phone: '',
-    password: '', confirmPassword: '',
-  })
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const handleNext = () => {
     if (!form.name || !form.email || !form.phone) {
-      toast.error('Please fill in all fields')
-      return
+      toast.error("Please fill in all fields");
+      return;
     }
     if (!/^\d{10}$/.test(form.phone)) {
-      toast.error('Enter a valid 10-digit phone number')
-      return
+      toast.error("Enter a valid 10-digit phone number");
+      return;
     }
-    setStep(2)
-  }
+    setStep(2);
+  };
 
   const handleSubmit = async () => {
     if (!form.password || !form.confirmPassword) {
-      toast.error('Please fill in all fields')
-      return
+      toast.error("Please fill in all fields");
+      return;
     }
     if (form.password.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
+      toast.error("Password must be at least 6 characters");
+      return;
     }
     if (form.password !== form.confirmPassword) {
-      toast.error('Passwords do not match')
-      return
+      toast.error("Passwords do not match");
+      return;
     }
-    setLoading(true)
+    setLoading(true);
     try {
-      // TODO: Uncomment when backend is ready
-      // const result = await register({
-      //   name:     form.name,
-      //   email:    form.email,
-      //   phone:    form.phone,
-      //   password: form.password,
-      //   role:     'passenger',
-      // })
-      // if (result.success) {
-      //   toast.success('Account created successfully!')
-      //   navigate('/login')
-      // } else {
-      //   toast.error(result.message || 'Registration failed')
-      // }
+      const result = await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        role: "passenger",
+      });
 
-      // TEMP: Remove below when backend is ready
-      toast.error('Backend not connected yet. Please use Frontend_Demo branch to test.')
-
+      if (result.success) {
+        toast.success("Account created successfully!");
+        navigate("/passenger/dashboard");
+      } else {
+        toast.error(result.message || "Registration failed");
+      }
     } catch (err) {
-      toast.error('Something went wrong. Please try again.')
+      toast.error("Something went wrong. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const progress = step === 1 ? 50 : 100
+  const progress = step === 1 ? 50 : 100;
 
   return (
     <div className="min-h-screen bg-rail-bg flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8 justify-center">
           <div className="bg-rail-accent p-2 rounded-xl">
@@ -87,13 +94,13 @@ const Register = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-
           {/* Header */}
           <h2 className="font-syne font-bold text-rail-blue text-2xl mb-1">
             Create Account
           </h2>
           <p className="text-rail-gray font-dm text-sm mb-6">
-            Step {step} of 2 — {step === 1 ? 'Personal Details' : 'Set Password'}
+            Step {step} of 2 —{" "}
+            {step === 1 ? "Personal Details" : "Set Password"}
           </p>
 
           {/* Progress Bar */}
@@ -116,7 +123,7 @@ const Register = () => {
                   <input
                     type="text"
                     value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Enter your full name"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm font-dm focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
                   />
@@ -132,7 +139,9 @@ const Register = () => {
                   <input
                     type="email"
                     value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
                     placeholder="Enter your email"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm font-dm focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
                   />
@@ -152,7 +161,9 @@ const Register = () => {
                     <input
                       type="tel"
                       value={form.phone}
-                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, phone: e.target.value })
+                      }
                       placeholder="10-digit mobile number"
                       maxLength={10}
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm font-dm focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
@@ -180,9 +191,11 @@ const Register = () => {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input
-                    type={showPass ? 'text' : 'password'}
+                    type={showPass ? "text" : "password"}
                     value={form.password}
-                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, password: e.target.value })
+                    }
                     placeholder="Min 6 characters"
                     className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 text-sm font-dm focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
                   />
@@ -190,7 +203,11 @@ const Register = () => {
                     onClick={() => setShowPass(!showPass)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-rail-gray"
                   >
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPass ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -202,9 +219,11 @@ const Register = () => {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rail-gray" />
                   <input
-                    type={showConfirm ? 'text' : 'password'}
+                    type={showConfirm ? "text" : "password"}
                     value={form.confirmPassword}
-                    onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, confirmPassword: e.target.value })
+                    }
                     placeholder="Re-enter your password"
                     className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 text-sm font-dm focus:outline-none focus:ring-2 focus:ring-rail-mid transition-all"
                   />
@@ -212,7 +231,11 @@ const Register = () => {
                     onClick={() => setShowConfirm(!showConfirm)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-rail-gray"
                   >
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirm ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -229,28 +252,28 @@ const Register = () => {
                   disabled={loading}
                   className="flex-1 bg-rail-accent hover:bg-orange-500 text-white font-dm font-semibold py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading
-                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : null
-                  }
-                  {loading ? 'Creating...' : 'Create Account'}
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : null}
+                  {loading ? "Creating..." : "Create Account"}
                 </button>
               </div>
             </div>
           )}
-
         </div>
 
         <p className="text-center text-sm font-dm text-rail-gray mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-rail-mid font-medium hover:text-rail-blue">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="text-rail-mid font-medium hover:text-rail-blue"
+          >
             Sign in
           </Link>
         </p>
-
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Register
+export default Register;

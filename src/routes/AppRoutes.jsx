@@ -28,10 +28,7 @@ const Placeholder = ({ name }) => (
   </div>
 )
 
-const ProtectedRoute = ({ allowedRole }) => {
-  const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
-  if (allowedRole && user.role !== allowedRole) return <Navigate to="/login" replace />
+const ProtectedRoute = () => {
   return <Outlet />
 }
 
