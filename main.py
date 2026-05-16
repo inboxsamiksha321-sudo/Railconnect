@@ -2,16 +2,32 @@ from fastapi import FastAPI, Form, UploadFile, File, Request
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
 from services.db_service import get_train_id, get_train_route, get_active_journey, get_officer_id, conn, cursor
+from services.urgency_service import detect_priority
+from services.auth import hash_password, verify_password, create_access_token
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from datetime import datetime
 from twilio.rest import Client
 from supabase import create_client
+from dotenv import load_dotenv
 import os
 import re
+
+load_dotenv()
 
 current_time = datetime.now()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
@@ -43,7 +59,10 @@ async def submit_complaint(  # gets complaint INFO
     file: UploadFile = File(None),
 ):
     
-    content_type = file.content_type
+    if file:
+        content_type = file.content_type
+    else:
+        content_type = "none"
 
     if "image" in content_type:
         media_type = "image"
@@ -66,6 +85,8 @@ async def submit_complaint(  # gets complaint INFO
 
     if not departments:
         departments.add("General")
+        
+    priority = detect_priority(departments)
 
     train_id = get_train_id(train_no)  # call get_train_id
 
@@ -113,11 +134,11 @@ async def submit_complaint(  # gets complaint INFO
     # insert into COMPLAINTS
     cursor.execute(
         """
-        INSERT INTO complaints (train_id, complaint_text, user_lat, user_long, assigned_station_id)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO complaints (train_id, complaint_text, user_lat, user_long, assigned_station_id, priority)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING complaint_id;
     """,
-        (train_id, text, user_lat, user_long, next_station_id),
+        (train_id, text, user_lat, user_long, next_station_id, priority),
     )
 
     complaint_id = cursor.fetchone()[0]
@@ -190,6 +211,7 @@ async def submit_complaint(  # gets complaint INFO
         "complaint_id": complaint_id,
         "departments": list(departments),
         "assigned_station_id": next_station_id,
+        "priority": priority,
     }
 
 
@@ -213,6 +235,8 @@ async def whatsapp_webhook(request: Request):
 
     if not departments:
         departments.add("General")
+        
+    priority = detect_priority(departments)
 
     # ---- TEMP TRAIN ----
     train_no = extract_train_no(text)
@@ -278,11 +302,11 @@ async def whatsapp_webhook(request: Request):
     # ---- INSERT COMPLAINT ----
     cursor.execute(
         """
-        INSERT INTO complaints (train_id, complaint_text, assigned_station_id)
-        VALUES (%s, %s, %s)
+        INSERT INTO complaints (train_id, complaint_text, assigned_station_id, priority)
+        VALUES (%s, %s, %s, %s)
         RETURNING complaint_id;
         """,
-        (train_id, text, next_station_id),
+        (train_id, text, next_station_id, priority),
     )
 
     complaint_id = cursor.fetchone()[0]
@@ -336,4 +360,121 @@ async def whatsapp_webhook(request: Request):
         "complaint_id": complaint_id,
         "departments": list(departments),
         "assigned_station_id": next_station_id,
+        "priority": priority,
+    }
+
+
+
+@app.post("/register")
+async def register(
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    password: str = Form(...)
+):
+
+    # check existing email
+    existing_email = supabase.table("users") \
+        .select("*") \
+        .eq("email", email) \
+        .execute()
+
+    if existing_email.data:
+        return {
+            "success": False,
+            "message": "Email already registered"
+        }
+
+    # check existing phone
+    existing_phone = supabase.table("users") \
+        .select("*") \
+        .eq("phone", phone) \
+        .execute()
+
+    if existing_phone.data:
+        return {
+            "success": False,
+            "message": "Phone number already registered"
+        }
+
+    # hash password
+    hashed_password = hash_password(password)
+
+    # insert user
+    response = supabase.table("users").insert({
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "password": hashed_password,
+        "role": "passenger"
+    }).execute()
+
+    user = response.data[0]
+
+    # create JWT token
+    token = create_access_token({
+        "user_id": user["id"],
+        "email": user["email"],
+        "role": user["role"]
+    })
+
+    return {
+        "success": True,
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "phone": user["phone"],
+            "role": user["role"]
+        }
+    }
+   
+    
+
+@app.post("/login")
+async def login(
+    email: str = Form(...),
+    password: str = Form(...)
+):
+
+    # find user by email
+    response = supabase.table("users") \
+        .select("*") \
+        .eq("email", email) \
+        .execute()
+
+    # user not found
+    if not response.data:
+        return {
+            "success": False,
+            "message": "Invalid email or password"
+        }
+
+    user = response.data[0]
+
+    # verify password
+    if not verify_password(password, user["password"]):
+        return {
+            "success": False,
+            "message": "Invalid email or password"
+        }
+
+    # create JWT token
+    token = create_access_token({
+        "user_id": user["id"],
+        "email": user["email"],
+        "role": user["role"]
+    })
+
+    return {
+        "success": True,
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "phone": user["phone"],
+            "role": user["role"]
+        }
     }
