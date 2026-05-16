@@ -11,19 +11,16 @@ BEARER_TOKEN = os.getenv("BEARER_TOKEN")
 # Twitter Client
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
-# Search Query
+
 QUERY = """
 (
-train delay OR
-late train OR
-railway complaint OR
-dirty coach OR
-ticket issue OR
-refund OR
-cancelled train OR
-platform issue OR
-@RailMinIndia OR
-@IRCTCofficial OR
+(train OR railway OR irctc OR railmadad)
+(delay OR late OR dirty OR refund OR cancelled OR issue OR complaint)
+OR
+@RailMinIndia
+OR
+@IRCTCofficial
+OR
 @RailMadad
 )
 -is:retweet lang:en
@@ -41,7 +38,7 @@ def fetch_tweets():
 
         response = client.search_recent_tweets(
             query=QUERY,
-            max_results=5,
+            max_results=10,
             since_id=last_seen_id,
             tweet_fields=["created_at"]
         )
