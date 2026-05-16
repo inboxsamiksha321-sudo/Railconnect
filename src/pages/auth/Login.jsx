@@ -88,16 +88,6 @@ const Login = () => {
             Sign in to your account
           </p>
 
-          {/* Backend Notice */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-yellow-700 mb-1">
-              ⚠️ Backend Integration Pending
-            </p>
-            <p className="text-xs text-yellow-600 font-dm">
-              This branch is backend ready. Connect your API to enable login.
-            </p>
-          </div>
-
           {/* Form */}
           <div className="flex flex-col gap-4">
             <div>

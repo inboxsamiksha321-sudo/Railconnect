@@ -217,12 +217,15 @@ const FileComplaint = () => {
         formData.append("file", photoFiles[0]);
       }
 
+      const token = localStorage.getItem("railconnect_token");
+
       const res = await axios.post(
         `${API_BASE_URL}/submit-complaint`,
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -232,7 +235,6 @@ const FileComplaint = () => {
       toast.success("Complaint filed successfully!");
 
       navigate("/passenger/dashboard");
-      
     } catch (err) {
       console.error(err);
 
