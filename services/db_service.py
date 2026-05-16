@@ -56,3 +56,21 @@ def get_train_route(route_id):
     )
 
     return cursor.fetchall()
+
+
+def get_officer_id(station_id, department_id):
+
+    cursor.execute(
+        """
+        SELECT officer_id
+        FROM officers
+        WHERE station_id = %s
+        AND department_id = %s
+        LIMIT 1
+        """,
+        (station_id, department_id),
+    )
+
+    result = cursor.fetchone()
+
+    return result[0] if result else None

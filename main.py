@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Form, UploadFile, File, Request
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
-from services.db_service import get_train_id, get_train_route, conn, cursor
-from services.db_service import get_active_journey
+from services.db_service import get_train_id, get_train_route, get_active_journey, get_officer_id, conn, cursor
 from typing import Optional
 from datetime import datetime
 from twilio.rest import Client
@@ -162,6 +161,8 @@ async def submit_complaint(  # gets complaint INFO
             continue
 
         dept_id = result[0]
+        
+        officer_id = get_officer_id(next_station_id, dept_id)
 
         cursor.execute(
             """
@@ -174,10 +175,10 @@ async def submit_complaint(  # gets complaint INFO
         # insert into COMPLAINT_ASSIGNMENTS
         cursor.execute(
             """
-            INSERT INTO complaint_assignments (complaint_id, station_id, department_id)
-            VALUES (%s, %s, %s)
+            INSERT INTO complaint_assignments (complaint_id, station_id, department_id, officer_id)
+            VALUES (%s, %s, %s, %s)
         """,
-            (complaint_id, next_station_id, dept_id),
+            (complaint_id, next_station_id, dept_id, officer_id),
         )
 
     conn.commit()
@@ -302,6 +303,8 @@ async def whatsapp_webhook(request: Request):
             continue
 
         dept_id = result[0]
+        
+        officer_id = get_officer_id(next_station_id, dept_id)
 
         cursor.execute(
             """
@@ -313,10 +316,10 @@ async def whatsapp_webhook(request: Request):
 
         cursor.execute(
             """
-            INSERT INTO complaint_assignments (complaint_id, station_id, department_id)
-            VALUES (%s, %s, %s)
+            INSERT INTO complaint_assignments (complaint_id, station_id, department_id, officer_id)
+            VALUES (%s, %s, %s, %s)
             """,
-            (complaint_id, next_station_id, dept_id),
+            (complaint_id, next_station_id, dept_id, officer_id),
         )
 
     conn.commit()
