@@ -19,7 +19,6 @@ from database import (
 
 app = FastAPI()
 
-# Prevent duplicate tweet processing
 processed_tweet_ids = set()
 
 
@@ -40,34 +39,45 @@ async def tweet_worker():
                 tweet_id = tweet["id"]
                 text = tweet["text"]
 
-                # Skip duplicate tweets
                 if tweet_id in processed_tweet_ids:
                     continue
 
                 processed_tweet_ids.add(tweet_id)
 
-                # STEP 1: Railway relevance filter
-                if not is_railway_related(text):
-                    continue
+                is_direct_tag = "@railconnecth14" in text.lower()
 
-                # STEP 2: Complaint filter
-                if not is_complaint(text):
-                    continue
+                if not is_direct_tag:
 
-                # STEP 3: Structured complaint creation
+                    if not is_railway_related(text):
+                        continue
+
+                    if not is_complaint(text):
+                        continue
+
                 data = {
                     "tweet_id": tweet_id,
+
+                    "source": (
+                        "direct_tag"
+                        if is_direct_tag
+                        else "public_monitoring"
+                    ),
+
                     "tweet": text,
+
                     "tweet_created_at": tweet["created_at"],
+
                     "processed_at": str(datetime.now()),
+
                     "train": extract_train(text),
+
                     "station": extract_station(text),
+
                     "type": classify(text)
                 }
 
                 stored = add_complaint(data)
 
-                # Print only unique complaints
                 if stored:
 
                     print("\nNEW RAILWAY COMPLAINT DETECTED")
@@ -78,7 +88,6 @@ async def tweet_worker():
             print("\nERROR IN TWEET WORKER:")
             print(e)
 
-        # Wait 2 minutes before next fetch
         await asyncio.sleep(120)
 
 

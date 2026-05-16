@@ -14,8 +14,12 @@ client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
 QUERY = """
 (
+(
 (train OR railway OR irctc OR railmadad)
 (delay OR late OR dirty OR refund OR cancelled OR issue OR complaint)
+)
+OR
+@RailconnectH14
 OR
 @RailMinIndia
 OR
@@ -25,7 +29,6 @@ OR
 )
 -is:retweet lang:en
 """
-
 # Store latest fetched tweet ID
 last_seen_id = None
 
