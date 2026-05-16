@@ -2,42 +2,70 @@ import tweepy
 from dotenv import load_dotenv
 import os
 
+# Load environment variables
 load_dotenv()
 
+# Get Bearer Token
 BEARER_TOKEN = os.getenv("BEARER_TOKEN")
 
+# Twitter Client
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
+# Search Query
 QUERY = """
-(train delay OR railway complaint OR late train
-OR dirty coach OR ticket issue
-OR @RailMinIndia OR @IRCTCofficial)
+(
+train delay OR
+late train OR
+railway complaint OR
+dirty coach OR
+ticket issue OR
+refund OR
+cancelled train OR
+platform issue OR
+@RailMinIndia OR
+@IRCTCofficial OR
+@RailMadad
+)
 -is:retweet lang:en
 """
 
+# Store latest fetched tweet ID
 last_seen_id = None
+
 
 def fetch_tweets():
 
     global last_seen_id
 
-    response = client.search_recent_tweets(
-        query=QUERY,
-        max_results=10,
-        since_id=last_seen_id
-    )
+    try:
 
-    tweets = []
+        response = client.search_recent_tweets(
+            query=QUERY,
+            max_results=5,
+            since_id=last_seen_id,
+            tweet_fields=["created_at"]
+        )
 
-    if response.data:
+        tweets = []
 
-        for tweet in response.data:
+        if response.data:
 
-            tweets.append({
-                "id": tweet.id,
-                "text": tweet.text
-            })
+            for tweet in response.data:
 
-        last_seen_id = response.data[0].id
+                tweets.append({
+                    "id": tweet.id,
+                    "text": tweet.text,
+                    "created_at": str(tweet.created_at)
+                })
 
-    return tweets
+            # Save newest tweet ID
+            last_seen_id = response.data[0].id
+
+        return tweets
+
+    except Exception as e:
+
+        print("\nERROR FETCHING TWEETS:")
+        print(e)
+
+        return []
