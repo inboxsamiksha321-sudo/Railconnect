@@ -1,9 +1,17 @@
-from fastapi import FastAPI, Form, UploadFile, File, Request
+from fastapi import FastAPI, Form, UploadFile, File, Request, Depends, HTTPException
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
-from services.db_service import get_train_id, get_train_route, get_active_journey, get_officer_id, conn, cursor
+from services.db_service import (
+    get_train_id,
+    get_train_route,
+    get_active_journey,
+    get_officer_id,
+    conn,
+    cursor,
+)
 from services.urgency_service import detect_priority
 from services.auth import hash_password, verify_password, create_access_token
+from services.dependencies import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from datetime import datetime
@@ -29,10 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 account_sid = os.getenv("TWILIO_SID")
 auth_token = os.getenv("TWILIO_AUTH")
@@ -52,13 +57,15 @@ def home():
 
 @app.post("/submit-complaint")
 async def submit_complaint(  # gets complaint INFO
+    current_user: dict = Depends(get_current_user),
     train_no: str = Form(...),
     user_lat: Optional[float] = Form(None),
     user_long: Optional[float] = Form(None),
     text: str = Form(None),
     file: UploadFile = File(None),
 ):
-    
+    print("CURRENT USER:", current_user)
+
     if file:
         content_type = file.content_type
     else:
@@ -79,29 +86,52 @@ async def submit_complaint(  # gets complaint INFO
         for d in predict(text):
             departments.add(d)
 
-    if file and "image" in file.content_type:    # calls image classification
+    if file and "image" in file.content_type:  # calls image classification
         for d in predict_image(file):
             departments.add(d)
 
     if not departments:
         departments.add("General")
-        
+
     priority = detect_priority(departments)
+
+    print("#1")
 
     train_id = get_train_id(train_no)  # call get_train_id
 
     if not train_id:
-        return {"error": "Invalid train number"}
+        raise HTTPException(status_code=400, detail="Invalid train number")
     print("Train ID:", train_id)
+
+    print("#2")
 
     journey = get_active_journey(train_id, current_time)
 
-    if not journey:
-        return {"error": "Train is not running currently"}
-    print("Journey:", journey)
+    print("#3")
 
-    route_id = journey["route_id"]
+    if journey:
+        route_id = journey["route_id"]
+    else:
+        cursor.execute("""
+            SELECT route_id
+            FROM journeys
+            WHERE train_id = %s
+            LIMIT 1
+        """, (train_id,))
+
+        result = cursor.fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=400,
+                detail="No journey found for this train"
+            )
+
+        route_id = result[0]
+        
     print("Route ID:", route_id)
+    
+    print("4")
 
     route = get_train_route(route_id)  # call get_train_route
 
@@ -134,11 +164,19 @@ async def submit_complaint(  # gets complaint INFO
     # insert into COMPLAINTS
     cursor.execute(
         """
-        INSERT INTO complaints (train_id, complaint_text, user_lat, user_long, assigned_station_id, priority)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO complaints (user_id, train_id, complaint_text, user_lat, user_long, assigned_station_id, priority)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING complaint_id;
     """,
-        (train_id, text, user_lat, user_long, next_station_id, priority),
+        (
+            current_user["user_id"],
+            train_id,
+            text,
+            user_lat,
+            user_long,
+            next_station_id,
+            priority,
+        ),
     )
 
     complaint_id = cursor.fetchone()[0]
@@ -150,21 +188,17 @@ async def submit_complaint(  # gets complaint INFO
 
         file_name = f"{complaint_id}_{file.filename}"
 
-        supabase.storage.from_("complaint-media").upload(
-            file_name,
-            file_bytes
-        )
+        supabase.storage.from_("complaint-media").upload(file_name, file_bytes)
 
         file_url = supabase.storage.from_("complaint-media").get_public_url(file_name)
 
-            # insert into COMPLAINT_MEDIA
+        # insert into COMPLAINT_MEDIA
         cursor.execute(
             """
             INSERT INTO complaint_media (complaint_id, media_type, media_url)
             VALUES (%s, %s, %s)
         """,
-
-            (complaint_id, media_type, file_url)
+            (complaint_id, media_type, file_url),
         )
 
         # insert into COMPLAINT_DEPARTMENTS
@@ -182,7 +216,7 @@ async def submit_complaint(  # gets complaint INFO
             continue
 
         dept_id = result[0]
-        
+
         officer_id = get_officer_id(next_station_id, dept_id)
 
         cursor.execute(
@@ -203,6 +237,8 @@ async def submit_complaint(  # gets complaint INFO
         )
 
     conn.commit()
+
+    print("COMPLAINT SAVED SUCCESSFULLY")
 
     print("Complaint stored:", complaint_id)
 
@@ -235,7 +271,7 @@ async def whatsapp_webhook(request: Request):
 
     if not departments:
         departments.add("General")
-        
+
     priority = detect_priority(departments)
 
     # ---- TEMP TRAIN ----
@@ -276,7 +312,7 @@ async def whatsapp_webhook(request: Request):
         )
         print("error Train not running")
         return {"error": "Train not running"}
-    
+
     print("Journey:", journey)
 
     route_id = journey["route_id"]
@@ -292,7 +328,7 @@ async def whatsapp_webhook(request: Request):
         )
         print("no route found for this train")
         return {"error": "No route found"}
-    
+
     print("Route:", route)
 
     # ---- NO LOCATION → LAST STATION ----
@@ -327,7 +363,7 @@ async def whatsapp_webhook(request: Request):
             continue
 
         dept_id = result[0]
-        
+
         officer_id = get_officer_id(next_station_id, dept_id)
 
         cursor.execute(
@@ -364,59 +400,50 @@ async def whatsapp_webhook(request: Request):
     }
 
 
-
 @app.post("/register")
 async def register(
     name: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
 ):
 
     # check existing email
-    existing_email = supabase.table("users") \
-        .select("*") \
-        .eq("email", email) \
-        .execute()
+    existing_email = supabase.table("users").select("*").eq("email", email).execute()
 
     if existing_email.data:
-        return {
-            "success": False,
-            "message": "Email already registered"
-        }
+        return {"success": False, "message": "Email already registered"}
 
     # check existing phone
-    existing_phone = supabase.table("users") \
-        .select("*") \
-        .eq("phone", phone) \
-        .execute()
+    existing_phone = supabase.table("users").select("*").eq("phone", phone).execute()
 
     if existing_phone.data:
-        return {
-            "success": False,
-            "message": "Phone number already registered"
-        }
+        return {"success": False, "message": "Phone number already registered"}
 
     # hash password
     hashed_password = hash_password(password)
 
     # insert user
-    response = supabase.table("users").insert({
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "password": hashed_password,
-        "role": "passenger"
-    }).execute()
+    response = (
+        supabase.table("users")
+        .insert(
+            {
+                "name": name,
+                "email": email,
+                "phone": phone,
+                "password": hashed_password,
+                "role": "passenger",
+            }
+        )
+        .execute()
+    )
 
     user = response.data[0]
 
     # create JWT token
-    token = create_access_token({
-        "user_id": user["id"],
-        "email": user["email"],
-        "role": user["role"]
-    })
+    token = create_access_token(
+        {"user_id": user["id"], "email": user["email"], "role": user["role"]}
+    )
 
     return {
         "success": True,
@@ -426,46 +453,31 @@ async def register(
             "name": user["name"],
             "email": user["email"],
             "phone": user["phone"],
-            "role": user["role"]
-        }
+            "role": user["role"],
+        },
     }
-   
-    
+
 
 @app.post("/login")
-async def login(
-    email: str = Form(...),
-    password: str = Form(...)
-):
+async def login(email: str = Form(...), password: str = Form(...)):
 
     # find user by email
-    response = supabase.table("users") \
-        .select("*") \
-        .eq("email", email) \
-        .execute()
+    response = supabase.table("users").select("*").eq("email", email).execute()
 
     # user not found
     if not response.data:
-        return {
-            "success": False,
-            "message": "Invalid email or password"
-        }
+        return {"success": False, "message": "Invalid email or password"}
 
     user = response.data[0]
 
     # verify password
     if not verify_password(password, user["password"]):
-        return {
-            "success": False,
-            "message": "Invalid email or password"
-        }
+        return {"success": False, "message": "Invalid email or password"}
 
     # create JWT token
-    token = create_access_token({
-        "user_id": user["id"],
-        "email": user["email"],
-        "role": user["role"]
-    })
+    token = create_access_token(
+        {"user_id": user["id"], "email": user["email"], "role": user["role"]}
+    )
 
     return {
         "success": True,
@@ -475,6 +487,6 @@ async def login(
             "name": user["name"],
             "email": user["email"],
             "phone": user["phone"],
-            "role": user["role"]
-        }
+            "role": user["role"],
+        },
     }
