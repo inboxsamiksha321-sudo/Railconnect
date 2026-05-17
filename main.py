@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, UploadFile, File, Request, Depends, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File, Request, Depends, HTTPException, Header
 from services.ai_service import predict, predict_image
 from services.routing_service import find_current_station, find_next_station
 from services.db_service import (
@@ -13,19 +13,25 @@ from services.urgency_service import detect_priority
 from services.auth import hash_password, verify_password, create_access_token
 from services.dependencies import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import Optional
 from datetime import datetime
 from twilio.rest import Client
 from supabase import create_client
+from jose import jwt
 from dotenv import load_dotenv
 import os
 import re
 
 load_dotenv()
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+
 current_time = datetime.now()
 
 app = FastAPI()
+
+security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,14 +63,23 @@ def home():
 
 @app.post("/submit-complaint")
 async def submit_complaint(  # gets complaint INFO
-    current_user: dict = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     train_no: str = Form(...),
     user_lat: Optional[float] = Form(None),
     user_long: Optional[float] = Form(None),
     text: str = Form(None),
     file: UploadFile = File(None),
 ):
-    print("CURRENT USER:", current_user)
+
+    token = credentials.credentials
+
+    current_user = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=["HS256"]
+    )
+
+    print(current_user)
 
     if file:
         content_type = file.content_type
@@ -490,3 +505,48 @@ async def login(email: str = Form(...), password: str = Form(...)):
             "role": user["role"],
         },
     }
+
+
+@app.get("/my-complaints")
+async def my_complaints(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+
+    try:
+
+        token = credentials.credentials
+
+        print("TOKEN:", token)
+
+        current_user = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=["HS256"]
+        )
+
+        print("CURRENT USER:", current_user)
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM complaints
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            """,
+            (current_user["user_id"],)
+        )
+
+        complaints = cursor.fetchall()
+
+        print("COMPLAINTS:", complaints)
+
+        return complaints
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )

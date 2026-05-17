@@ -10,6 +10,8 @@ ALGORITHM = "HS256"
 
 def get_current_user(authorization: str = Header(None)):
 
+    print("AUTH HEADER:", authorization)
+
     if not authorization:
         raise HTTPException(
             status_code=401,
@@ -18,7 +20,15 @@ def get_current_user(authorization: str = Header(None)):
 
     try:
 
-        token = authorization.split(" ")[1]
+        parts = authorization.split(" ")
+
+        if len(parts) != 2:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid authorization format"
+            )
+
+        token = parts[1]
 
         payload = jwt.decode(
             token,
@@ -26,9 +36,13 @@ def get_current_user(authorization: str = Header(None)):
             algorithms=[ALGORITHM]
         )
 
+        print("DECODED PAYLOAD:", payload)
+
         return payload
 
-    except JWTError:
+    except JWTError as e:
+
+        print("JWT ERROR:", str(e))
 
         raise HTTPException(
             status_code=401,
