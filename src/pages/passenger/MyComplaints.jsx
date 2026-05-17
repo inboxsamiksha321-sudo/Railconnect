@@ -77,21 +77,21 @@ const MyComplaints = () => {
 
         const formattedComplaints = res.data.map((c) => ({
 
-          id: String(c[0]),
+          id: String(c.complaint_id),
 
-          train: c[1],
+          train: c.train_id,
 
-          title: c[2] || "No complaint text",
+          title: c.complaint_text || "No complaint text",
 
-          status: (c[6] || "pending")
+          status: (c.status || "pending")
             .toLowerCase()
             .replace(" ", "_"),
 
-          date: c[7]
-            ? new Date(c[7]).toLocaleDateString()
+          date: c.created_at
+            ? new Date(c.created_at).toLocaleDateString()
             : "N/A",
 
-          priority: (c[8] || "normal").toLowerCase(),
+          priority: (c.priority || "normal").toLowerCase(),
 
           coach: "B1",
 
