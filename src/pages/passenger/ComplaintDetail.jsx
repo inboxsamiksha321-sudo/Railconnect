@@ -43,25 +43,16 @@ const ComplaintDetail = () => {
 
         setComplaint({
           id: data.complaint_id,
-
           title: data.complaint_text,
-
           description: data.complaint_text,
-
-          train: data.train_id,
-
+          media: data.media,
+          train: data.train_no,
           status: data.status.toLowerCase().replace(" ", "_"),
-
           priority: data.priority.toLowerCase(),
-
           category: data.department || "General",
-
           from: data.source_station,
-
           to: data.destination_station,
-
           date: new Date(data.created_at).toLocaleDateString(),
-
           timeline: [
             {
               status: "Complaint Filed",
@@ -199,6 +190,49 @@ const ComplaintDetail = () => {
           <h2 className="font-syne font-bold text-rail-blue mb-3">Description</h2>
           <p className="text-sm text-gray-600 font-dm leading-relaxed">{complaint.description}</p>
         </div>
+
+        {/* Media */}
+        {complaint.media && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+            <h2 className="font-syne font-bold text-rail-blue mb-4">
+              Attached Media
+            </h2>
+
+            {/* IMAGE */}
+            {complaint.media.media_type === "image" && (
+              <img
+                src={complaint.media.media_url}
+                alt="Complaint Media"
+                className="w-full max-h-[500px] object-contain rounded-xl border"
+              />
+            )}
+
+            {/* VIDEO */}
+            {complaint.media.media_type === "video" && (
+              <video
+                controls
+                className="w-full rounded-xl border"
+              >
+                <source
+                  src={complaint.media.media_url}
+                />
+              </video>
+
+            )}
+
+            {/* AUDIO */}
+            {complaint.media.media_type === "audio" && (
+              <audio
+                controls
+                className="w-full"
+              >
+                <source
+                  src={complaint.media.media_url}
+                />
+              </audio>
+            )}
+          </div>
+        )}
 
         {/* Timeline */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
