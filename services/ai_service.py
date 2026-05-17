@@ -1,4 +1,5 @@
 import torch
+from io import BytesIO
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
@@ -155,12 +156,15 @@ def predict(text):                                        # communicates with te
     return results
 
 
-def predict_image(file):
+def predict_image(file_bytes):
 
-    image = Image.open(file.file)
+    image = Image.open(BytesIO(file_bytes))
 
     inputs = clip_processor(
-        text=image_labels, images=image, return_tensors="pt", padding=True
+        text=image_labels,
+        images=image,
+        return_tensors="pt",
+        padding=True
     )
 
     with torch.no_grad():

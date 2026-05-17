@@ -93,8 +93,14 @@ async def submit_complaint(  # gets complaint INFO
         for d in predict(text):
             departments.add(d)
 
-    if file and "image" in file.content_type:  # calls image classification
-        for d in predict_image(file):
+    file_bytes = None
+
+    if file:
+        file_bytes = await file.read()
+        file.file.seek(0)
+
+    if file and "image" in file.content_type:
+        for d in predict_image(file_bytes):
             departments.add(d)
 
     if not departments:
@@ -190,8 +196,6 @@ async def submit_complaint(  # gets complaint INFO
 
     # save media file to storage
     if file and file.filename != "":
-
-        file_bytes = await file.read()
 
         file_name = f"{complaint_id}_{file.filename}"
 
@@ -556,10 +560,12 @@ async def get_complaint_details(
 
     cursor.execute(
         """
-        SELECT *
-        FROM complaints
-        WHERE complaint_id = %s
-        AND user_id = %s
+        SELECT c.*, t.train_no
+        FROM complaints c
+        JOIN trains t
+        ON c.train_id = t.train_id
+        WHERE c.complaint_id = %s
+        AND c.user_id = %s
         """,
         (complaint_id, current_user["user_id"])
     )
@@ -623,6 +629,27 @@ async def get_complaint_details(
 
             source_station = stations[0][0]
             destination_station = stations[-1][0]
+            
+    cursor.execute(
+        """
+        SELECT media_type, media_url
+        FROM complaint_media
+        WHERE complaint_id = %s
+        LIMIT 1
+        """,
+        (complaint_id,)
+    )
+
+    media_result = cursor.fetchone()
+
+    media = None
+
+    if media_result:
+
+        media = {
+            "media_type": media_result[0],
+            "media_url": media_result[1]
+        }
 
     if not complaint:
 
@@ -634,10 +661,11 @@ async def get_complaint_details(
     formatted = {
 
         "complaint_id": complaint[0],
-        "train_id": complaint[1],
+        "train_no": complaint[10],
         "source_station": source_station,
         "destination_station": destination_station,
         "complaint_text": complaint[2],
+        "media": media,
         "user_lat": complaint[3],
         "user_long": complaint[4],
         "assigned_station_id": complaint[5],
