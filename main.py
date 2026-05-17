@@ -545,3 +545,106 @@ async def my_complaints(
             status_code=500,
             detail=str(e)
         )
+ 
+        
+
+@app.get("/complaint/{complaint_id}")
+async def get_complaint_details(
+    complaint_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM complaints
+        WHERE complaint_id = %s
+        AND user_id = %s
+        """,
+        (complaint_id, current_user["user_id"])
+    )
+
+    complaint = cursor.fetchone()
+    
+    cursor.execute(
+        """
+        SELECT d.department_name
+        FROM complaint_departments cd
+        JOIN departments d
+        ON cd.department_id = d.department_id
+        WHERE cd.complaint_id = %s
+        LIMIT 1
+        """,
+        (complaint_id,)
+    )
+
+    dept_result = cursor.fetchone()
+
+    department = (
+        dept_result[0]
+        if dept_result
+        else "General"
+    )
+    
+    cursor.execute(
+        """
+        SELECT route_id
+        FROM journeys
+        WHERE train_id = %s
+        LIMIT 1
+        """,
+        (complaint[1],)
+    )
+
+    journey_result = cursor.fetchone()
+
+    source_station = "Unknown"
+    destination_station = "Unknown"
+
+    if journey_result:
+
+        route_id = journey_result[0]
+
+        cursor.execute(
+            """
+            SELECT s.station_name
+            FROM train_routes r
+            JOIN stations s
+            ON r.station_id = s.station_id
+            WHERE r.route_id = %s
+            ORDER BY r.stop_number ASC
+            """,
+            (route_id,)
+        )
+
+        stations = cursor.fetchall()
+
+        if stations and len(stations) >= 2:
+
+            source_station = stations[0][0]
+            destination_station = stations[-1][0]
+
+    if not complaint:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Complaint not found"
+        )
+
+    formatted = {
+
+        "complaint_id": complaint[0],
+        "train_id": complaint[1],
+        "source_station": source_station,
+        "destination_station": destination_station,
+        "complaint_text": complaint[2],
+        "user_lat": complaint[3],
+        "user_long": complaint[4],
+        "assigned_station_id": complaint[5],
+        "status": complaint[6],
+        "created_at": str(complaint[7]),
+        "priority": complaint[8],
+        "department": department
+    }
+
+    return formatted
