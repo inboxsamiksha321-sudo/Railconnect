@@ -26,14 +26,55 @@ const ComplaintDetail = () => {
     const fetchComplaint = async () => {
       setLoading(true)
       try {
-        // TODO: Uncomment when backend is ready
-        // const res = await axios.get(`${API_BASE_URL}/complaints/${id}`)
-        // setComplaint(res.data)
+        const token = localStorage.getItem("railconnect_token");
 
-        // TEMP: Remove below when backend is ready
-        setComplaint(null)
-        setError('Backend not connected yet')
+        const res = await axios.get(
+          `${API_BASE_URL}/complaint/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
+        console.log(res.data);
+
+        const data = res.data;
+
+        setComplaint({
+          id: data.complaint_id,
+
+          title: data.complaint_text,
+
+          description: data.complaint_text,
+
+          train: data.train_id,
+
+          status: data.status.toLowerCase().replace(" ", "_"),
+
+          priority: data.priority.toLowerCase(),
+
+          category: data.department || "General",
+
+          from: data.source_station,
+
+          to: data.destination_station,
+
+          date: new Date(data.created_at).toLocaleDateString(),
+
+          timeline: [
+            {
+              status: "Complaint Filed",
+              date: new Date(data.created_at).toLocaleString(),
+              done: true,
+            },
+            {
+              status: "Pending Review",
+              date: "",
+              done: data.status !== "Pending",
+            },
+          ],
+        });
       } catch (err) {
         if (err.response?.status === 404) {
           setError('not_found')
@@ -140,7 +181,6 @@ const ComplaintDetail = () => {
             {[
               { icon: <Train className="w-3.5 h-3.5" />,         label: 'Train', value: complaint.train                      },
               { icon: <MapPin className="w-3.5 h-3.5" />,        label: 'Route', value: `${complaint.from} → ${complaint.to}` },
-              { icon: <MessageSquare className="w-3.5 h-3.5" />, label: 'Coach', value: complaint.coach                      },
               { icon: <Calendar className="w-3.5 h-3.5" />,      label: 'Filed', value: complaint.date                       },
             ].map((item, i) => (
               <div key={i}>
