@@ -63,21 +63,13 @@ def home():
 
 @app.post("/submit-complaint")
 async def submit_complaint(  # gets complaint INFO
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: dict = Depends(get_current_user),
     train_no: str = Form(...),
     user_lat: Optional[float] = Form(None),
     user_long: Optional[float] = Form(None),
     text: str = Form(None),
     file: UploadFile = File(None),
 ):
-
-    token = credentials.credentials
-
-    current_user = jwt.decode(
-        token,
-        SECRET_KEY,
-        algorithms=["HS256"]
-    )
 
     print(current_user)
 
@@ -509,20 +501,10 @@ async def login(email: str = Form(...), password: str = Form(...)):
 
 @app.get("/my-complaints")
 async def my_complaints(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: dict = Depends(get_current_user)
 ):
 
     try:
-
-        token = credentials.credentials
-
-        print("TOKEN:", token)
-
-        current_user = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=["HS256"]
-        )
 
         print("CURRENT USER:", current_user)
 
@@ -538,9 +520,22 @@ async def my_complaints(
 
         complaints = cursor.fetchall()
 
-        print("COMPLAINTS:", complaints)
+        formatted = []
 
-        return complaints
+        for c in complaints:
+            formatted.append({
+                "complaint_id": c[0],
+                "train_id": c[1],
+                "complaint_text": c[2],
+                "user_lat": c[3],
+                "user_long": c[4],
+                "assigned_station_id": c[5],
+                "status": c[6],
+                "created_at": str(c[7]),
+                "priority": c[8]
+            })
+
+        return formatted
 
     except Exception as e:
 
