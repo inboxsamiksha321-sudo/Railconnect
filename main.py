@@ -71,24 +71,11 @@ async def submit_complaint(  # gets complaint INFO
     user_lat: Optional[float] = Form(None),
     user_long: Optional[float] = Form(None),
     text: str = Form(None),
-    file: UploadFile = File(None),
+    files: list[UploadFile] = File([]),
 ):
 
     print(current_user)
 
-    if file:
-        content_type = file.content_type
-    else:
-        content_type = "none"
-
-    if "image" in content_type:
-        media_type = "image"
-    elif "audio" in content_type:
-        media_type = "audio"
-    elif "video" in content_type:
-        media_type = "video"
-    else:
-        media_type = "other"
 
     departments = set()
 
@@ -111,14 +98,6 @@ async def submit_complaint(  # gets complaint INFO
             departments.add(d)
 
     file_bytes = None
-
-    if file:
-        file_bytes = await file.read()
-        file.file.seek(0)
-
-    if file and "image" in file.content_type:
-        for d in predict_image(file_bytes):
-            departments.add(d)
 
     if not departments:
         departments.add("General")
@@ -211,22 +190,62 @@ async def submit_complaint(  # gets complaint INFO
 
     complaint_id = cursor.fetchone()[0]
 
-    # save media file to storage
-    if file and file.filename != "":
+    # SAVE MULTIPLE MEDIA FILES
+
+    for file in files:
+
+        if not file.filename:
+            continue
+
+        content_type = file.content_type
+
+        if "image" in content_type:
+            media_type = "image"
+
+        elif "audio" in content_type:
+            media_type = "audio"
+
+        elif "video" in content_type:
+            media_type = "video"
+
+        else:
+            media_type = "other"
+
+        file_bytes = await file.read()
+
+        # IMAGE AI DETECTION
+        if "image" in content_type:
+
+            for d in predict_image(file_bytes):
+                departments.add(d)
+
+        file.file.seek(0)
 
         file_name = f"{complaint_id}_{file.filename}"
 
-        supabase.storage.from_("complaint-media").upload(file_name, file_bytes)
+        supabase.storage.from_("complaint-media").upload(
+            file_name,
+            file_bytes
+        )
 
-        file_url = supabase.storage.from_("complaint-media").get_public_url(file_name)
+        file_url = supabase.storage.from_("complaint-media").get_public_url(
+            file_name
+        )
 
-        # insert into COMPLAINT_MEDIA
         cursor.execute(
             """
-            INSERT INTO complaint_media (complaint_id, media_type, media_url)
+            INSERT INTO complaint_media (
+                complaint_id,
+                media_type,
+                media_url
+            )
             VALUES (%s, %s, %s)
-        """,
-            (complaint_id, media_type, file_url),
+            """,
+            (
+                complaint_id,
+                media_type,
+                file_url
+            ),
         )
 
         # insert into COMPLAINT_DEPARTMENTS
@@ -652,21 +671,19 @@ async def get_complaint_details(
         SELECT media_type, media_url
         FROM complaint_media
         WHERE complaint_id = %s
-        LIMIT 1
         """,
         (complaint_id,)
     )
 
-    media_result = cursor.fetchone()
+    media_results = cursor.fetchall()
 
-    media = None
+    media = []
 
-    if media_result:
-
-        media = {
-            "media_type": media_result[0],
-            "media_url": media_result[1]
-        }
+    for m in media_results:
+        media.append({
+            "media_type": m[0],
+            "media_url": m[1]
+        })
 
     if not complaint:
 
@@ -945,20 +962,19 @@ async def get_officer_complaint(
         SELECT media_type, media_url
         FROM complaint_media
         WHERE complaint_id = %s
-        LIMIT 1
         """,
         (complaint_id,)
     )
 
-    media_result = cursor.fetchone()
+    media_results = cursor.fetchall()
 
-    media = None
+    media = []
 
-    if media_result:
-        media = {
-            "media_type": media_result[0],
-            "media_url": media_result[1]
-        }
+    for m in media_results:
+        media.append({
+            "media_type": m[0],
+            "media_url": m[1]
+        })
 
     return {
         "complaint_id": complaint[0],
