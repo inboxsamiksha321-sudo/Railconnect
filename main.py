@@ -810,3 +810,151 @@ async def get_officer_complaints(
         })
 
     return formatted
+
+
+@app.get("/officer-complaint/{complaint_id}")
+async def get_officer_complaint(
+    complaint_id: int,
+    current_officer: dict = Depends(get_current_officer)
+):
+
+    cursor.execute(
+        """
+        SELECT
+            c.complaint_id,
+            c.complaint_text,
+            c.status,
+            c.priority,
+            c.created_at,
+            t.train_no,
+            u.email
+        FROM complaints c
+
+        JOIN trains t
+        ON c.train_id = t.train_id
+        
+        JOIN users u
+        ON c.user_id = u.id
+
+        JOIN complaint_assignments ca
+        ON c.complaint_id = ca.complaint_id
+
+        WHERE c.complaint_id = %s
+        AND ca.officer_id = %s
+        """,
+        (
+            complaint_id,
+            current_officer["officer_id"]
+        )
+    )
+
+    complaint = cursor.fetchone()
+
+    if not complaint:
+        raise HTTPException(
+            status_code=404,
+            detail="Complaint not found"
+        )
+        
+    cursor.execute(
+        """
+        SELECT d.department_name
+        FROM complaint_departments cd
+
+        JOIN departments d
+        ON cd.department_id = d.department_id
+
+        WHERE cd.complaint_id = %s
+
+        LIMIT 1
+        """,
+        (complaint_id,)
+    )
+
+    dept_result = cursor.fetchone()
+
+    department = (
+        dept_result[0]
+        if dept_result
+        else "General"
+    )
+    
+    
+    cursor.execute(
+        """
+        SELECT route_id
+        FROM journeys
+        WHERE train_id = (
+            SELECT train_id
+            FROM complaints
+            WHERE complaint_id = %s
+        )
+        LIMIT 1
+        """,
+        (complaint_id,)
+    )
+
+    journey_result = cursor.fetchone()
+
+    source_station = "Unknown"
+    destination_station = "Unknown"
+
+    if journey_result:
+
+        route_id = journey_result[0]
+
+        cursor.execute(
+            """
+            SELECT s.station_name
+            FROM train_routes r
+
+            JOIN stations s
+            ON r.station_id = s.station_id
+
+            WHERE r.route_id = %s
+
+            ORDER BY r.stop_number ASC
+            """,
+            (route_id,)
+        )
+
+        stations = cursor.fetchall()
+
+        if stations and len(stations) >= 2:
+
+            source_station = stations[0][0]
+            destination_station = stations[-1][0]
+
+    cursor.execute(
+        """
+        SELECT media_type, media_url
+        FROM complaint_media
+        WHERE complaint_id = %s
+        LIMIT 1
+        """,
+        (complaint_id,)
+    )
+
+    media_result = cursor.fetchone()
+
+    media = None
+
+    if media_result:
+        media = {
+            "media_type": media_result[0],
+            "media_url": media_result[1]
+        }
+
+    return {
+        "complaint_id": complaint[0],
+        "complaint_text": complaint[1],
+        "status": complaint[2],
+        "priority": complaint[3],
+        "created_at": str(complaint[4]),
+        "train_no": complaint[5],
+        "passenger_email": complaint[6],
+        "department": department,
+        "source_station": source_station,
+        "destination_station": destination_station,
+        "media": media
+    }
