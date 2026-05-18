@@ -20,6 +20,7 @@ from twilio.rest import Client
 from supabase import create_client
 from jose import jwt
 from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
 import bcrypt
 import os
 import re
@@ -91,8 +92,22 @@ async def submit_complaint(  # gets complaint INFO
 
     departments = set()
 
-    if text:  # calls text classification
-        for d in predict(text):
+    translated_text = text
+
+    try:
+        translated_text = GoogleTranslator(
+            source='auto',
+            target='en'
+        ).translate(text)
+
+        print("Original:", text)
+        print("Translated:", translated_text)
+
+    except Exception as e:
+        print("Translation failed:", e)
+
+    if translated_text:
+        for d in predict(translated_text):
             departments.add(d)
 
     file_bytes = None
