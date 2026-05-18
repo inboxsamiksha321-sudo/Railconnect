@@ -105,17 +105,44 @@ const ComplaintDetail = () => {
 
   const s = statusConfig[status]
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!remarks.trim()) {
       toast.error('Please add remarks before updating!')
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      toast.success(`Complaint ${id} updated to ${s.label}!`)
-      setSaving(false)
+    try {
+      const token = localStorage.getItem(
+        "railconnect_officer_token"
+      )
+      const formData = new FormData()
+      formData.append("status", status)
+      formData.append("remarks", remarks)
+      await axios.put(
+        `http://127.0.0.1:8000/update-complaint-status/${id}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+      toast.success(
+        `Complaint updated to ${s.label}`
+      )
+      setComplaint({
+        ...complaint,
+        status: status
+      })
       setRemarks('')
-    }, 800)
+    } catch (err) {
+      console.log(err)
+      toast.error(
+        'Failed to update complaint'
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
