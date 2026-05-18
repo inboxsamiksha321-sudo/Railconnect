@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Train, Mail, Lock, Eye, EyeOff, Building2 } from 'lucide-react'
+import { Train, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { TEST_USERS } from '../../constants'
 import toast from 'react-hot-toast'
 
 const Login = () => {
@@ -12,25 +11,34 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+
     if (!form.email || !form.password) {
       toast.error('Please fill in all fields')
       return
     }
+
     setLoading(true)
-    setTimeout(() => {
-      const user = TEST_USERS.find(
-        u => u.email === form.email && u.password === form.password
+
+    try {
+      const result = await login(
+        form.email,
+        form.password
       )
-      if (user) {
-        login(user)
-        toast.success(`Welcome, ${user.name}!`)
+
+      if (result.success) {
+        toast.success('Login successful')
         navigate('/dept/dashboard')
       } else {
-        toast.error('Invalid email or password')
+        toast.error(
+          result.message || 'Invalid credentials'
+        )
       }
+    } catch (err) {
+      toast.error('Login failed')
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -96,22 +104,6 @@ const Login = () => {
           <p className="text-dept-gray font-dm text-sm mb-8">
             Sign in with your department credentials
           </p>
-
-          {/* Test Credentials */}
-          <div className="bg-dept-light border border-blue-200 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-dept-blue mb-2 flex items-center gap-1">
-              <Building2 className="w-3.5 h-3.5" /> Test Credentials:
-            </p>
-            {TEST_USERS.map((u, i) => (
-              <button
-                key={i}
-                onClick={() => setForm({ email: u.email, password: u.password })}
-                className="w-full text-left text-xs text-dept-gray font-dm hover:text-dept-blue transition-colors py-0.5"
-              >
-                <span className="font-medium">{u.name}</span> ({u.department}) → {u.email}
-              </button>
-            ))}
-          </div>
 
           {/* Form */}
           <div className="flex flex-col gap-4">

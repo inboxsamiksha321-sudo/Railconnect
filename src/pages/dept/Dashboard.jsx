@@ -1,32 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
 import { useAuth } from '../../context/AuthContext'
 import {
   FileText, Clock, TrendingUp, CheckCircle,
   ChevronRight, AlertCircle, Building2, User
 } from 'lucide-react'
 
-const allComplaints = [
-  { id: 'RC001', title: 'Dirty coach in train 12345',       category: 'Cleanliness',      status: 'pending',     priority: 'normal', date: '06 Mar 2026', train: '12345', coach: 'S4',  passenger: 'Raj Patel'    },
-  { id: 'RC002', title: 'Rude behaviour by TTE officer',    category: 'Staff',            status: 'in_progress', priority: 'high',   date: '05 Mar 2026', train: '11028', coach: 'B2',  passenger: 'Amit Shah'     },
-  { id: 'RC003', title: 'Stale food served in pantry car',  category: 'Catering',         status: 'resolved',    priority: 'normal', date: '03 Mar 2026', train: '12701', coach: 'PC',  passenger: 'Priya Mehta'   },
-  { id: 'RC004', title: 'AC not working in coach B4',       category: 'Electrical',       status: 'pending',     priority: 'high',   date: '02 Mar 2026', train: '12952', coach: 'B4',  passenger: 'Suresh Kumar'  },
-  { id: 'RC005', title: 'Broken seat in coach S6',          category: 'Infrastructure',   status: 'resolved',    priority: 'normal', date: '01 Mar 2026', train: '11301', coach: 'S6',  passenger: 'Anita Roy'     },
-  { id: 'RC006', title: 'Harassment by co-passenger',       category: 'Safety & Security',status: 'rejected',    priority: 'high',   date: '28 Feb 2026', train: '12123', coach: 'GEN', passenger: 'Vikram Singh'  },
-  { id: 'RC007', title: 'Passenger fell ill on train',      category: 'Medical',          status: 'in_progress', priority: 'high',   date: '27 Feb 2026', train: '12301', coach: 'A1',  passenger: 'Neha Sharma'   },
-  { id: 'RC008', title: 'Train delayed by 3 hours',         category: 'General',          status: 'resolved',    priority: 'normal', date: '25 Feb 2026', train: '12625', coach: 'S2',  passenger: 'Rahul Verma'   },
-]
-
-const deptMap = {
-  'Cleanliness':      ['Cleanliness'],
-  'Electrical':       ['Electrical'],
-  'Infrastructure':   ['Infrastructure'],
-  'Safety & Security':['Safety & Security'],
-  'Staff':            ['Staff'],
-  'Catering':         ['Catering'],
-  'Medical':          ['Medical'],
-  'General':          ['General'],
-  'All Departments':  ['Cleanliness', 'Electrical', 'Infrastructure', 'Safety & Security', 'Staff', 'Catering', 'Medical', 'General'],
-}
 
 const statusConfig = {
   pending:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800' },
@@ -38,10 +18,42 @@ const statusConfig = {
 const Dashboard = () => {
   const { user } = useAuth()
 
-  const myCategories = deptMap[user?.department] || []
-  const myComplaints = user?.isHead
-    ? allComplaints
-    : allComplaints.filter(c => myCategories.includes(c.category))
+  const [complaints, setComplaints] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      try {
+        const token = localStorage.getItem(
+          "railconnect_officer_token"
+        )
+        const res = await axios.get(
+          "http://127.0.0.1:8000/officer-complaints",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        )
+        setComplaints(res.data)
+      } catch (err) {
+        console.log(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchComplaints()
+  }, [])
+
+  const myComplaints = complaints.map(c => ({
+    id: c.complaint_id,
+    title: c.complaint_text,
+    category: "Department",
+    status: c.status.toLowerCase().replace(" ", "_"),
+    priority: c.priority.toLowerCase(),
+    date: new Date(c.created_at).toLocaleDateString(),
+    train: c.train_no,
+  }))
 
   const stats = [
     { label: 'Total Assigned',  value: myComplaints.length,                                          icon: <FileText className="w-5 h-5" />,   color: 'blue'   },
@@ -57,8 +69,20 @@ const Dashboard = () => {
     green:  { bg: 'bg-green-50',  icon: 'text-dept-green',  border: 'border-green-100'  },
   }
 
-  const recent = myComplaints.slice(0, 5)
+  const recent = [...myComplaints]
+  .sort((a, b) => b.id - a.id)
+  .slice(0, 5)
   const highPriority = myComplaints.filter(c => c.priority === 'high' && c.status !== 'resolved')
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">
+          Loading complaints...
+        </p>
+      </div>
+    ) 
+  }
 
   return (
     <div className="min-h-screen bg-dept-bg py-8">

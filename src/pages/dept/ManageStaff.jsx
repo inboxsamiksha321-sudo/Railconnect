@@ -6,7 +6,6 @@ import {
   XCircle, Search, Shield
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { TEST_USERS } from '../../constants'
 
 const ManageStaff = () => {
   const { user } = useAuth()

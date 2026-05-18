@@ -15,15 +15,3 @@ export const STATUS_CONFIG = {
   resolved:    { label: 'Resolved',    bg: 'bg-green-100',  text: 'text-green-800' },
   rejected:    { label: 'Rejected',    bg: 'bg-red-100',    text: 'text-red-800'   },
 }
-
-export const TEST_USERS = [
-  { email: 'cleanliness@dept.com', password: '123456', role: 'staff', department: 'Cleanliness',      name: 'Ramesh Kumar',  isHead: false },
-  { email: 'electrical@dept.com',  password: '123456', role: 'staff', department: 'Electrical',        name: 'Sunil Verma',   isHead: false },
-  { email: 'infra@dept.com',       password: '123456', role: 'staff', department: 'Infrastructure',    name: 'Ajay Patil',    isHead: false },
-  { email: 'safety@dept.com',      password: '123456', role: 'staff', department: 'Safety & Security', name: 'Sunil Patil',   isHead: false },
-  { email: 'staff@dept.com',       password: '123456', role: 'staff', department: 'Staff',             name: 'Vikram Singh',  isHead: false },
-  { email: 'catering@dept.com',    password: '123456', role: 'staff', department: 'Catering',          name: 'Suresh Patel',  isHead: false },
-  { email: 'medical@dept.com',     password: '123456', role: 'staff', department: 'Medical',           name: 'Dr. Anita Roy', isHead: false },
-  { email: 'general@dept.com',     password: '123456', role: 'staff', department: 'General',           name: 'Neha Sharma',   isHead: false },
-  { email: 'head@dept.com',        password: '123456', role: 'head',  department: 'All Departments',   name: 'Priya Sharma',  isHead: true  },
-]
