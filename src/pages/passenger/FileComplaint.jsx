@@ -215,20 +215,29 @@ const FileComplaint = () => {
       formData.append("user_lat", position.coords.latitude);
       formData.append("user_long", position.coords.longitude);
 
+      // ADD ALL IMAGES
+      photoFiles.forEach((photo) => {
+        formData.append("files", photo);
+      });
+
+      // ADD VIDEO
       if (videoFile) {
-        formData.append("file", videoFile);
+        formData.append("files", videoFile);
       }
-      else if (photoFiles.length > 0) {
-        formData.append("file", photoFiles[0]);
-      }
-      else if (audioBlob) {
+
+      // ADD AUDIO
+      if (audioBlob) {
+
         const audioFile = new File(
-            [audioBlob],
-            "recording.webm",
-            { type: "audio/webm" }
-          );
-          formData.append("file", audioFile);
-        }
+          [audioBlob],
+          "recording.webm",
+          {
+            type: "audio/webm"
+          }
+        );
+
+        formData.append("files", audioFile);
+      }
 
       const token = localStorage.getItem("railconnect_token");
 

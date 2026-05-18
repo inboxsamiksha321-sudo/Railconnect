@@ -192,45 +192,51 @@ const ComplaintDetail = () => {
         </div>
 
         {/* Media */}
-        {complaint.media && (
+        {complaint.media?.length > 0 && (
+
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+
             <h2 className="font-syne font-bold text-rail-blue mb-4">
               Attached Media
             </h2>
 
-            {/* IMAGE */}
-            {complaint.media.media_type === "image" && (
-              <img
-                src={complaint.media.media_url}
-                alt="Complaint Media"
-                className="w-full max-h-[500px] object-contain rounded-xl border"
-              />
-            )}
+            <div className="space-y-4">
 
-            {/* VIDEO */}
-            {complaint.media.media_type === "video" && (
-              <video
-                controls
-                className="w-full rounded-xl border"
-              >
-                <source
-                  src={complaint.media.media_url}
-                />
-              </video>
+              {complaint.media.map((m, index) => (
 
-            )}
+                <div key={index}>
 
-            {/* AUDIO */}
-            {complaint.media.media_type === "audio" && (
-              <audio
-                controls
-                className="w-full"
-              >
-                <source
-                  src={complaint.media.media_url}
-                />
-              </audio>
-            )}
+                  {/* IMAGE */}
+                  {m.media_type === "image" && (
+                    <img
+                      src={m.media_url}
+                      alt="Complaint Media"
+                      className="w-full max-h-[500px] object-contain rounded-xl border"
+                    />
+                  )}
+
+                  {/* VIDEO */}
+                  {m.media_type === "video" && (
+                    <video
+                      controls
+                      className="w-full rounded-xl border"
+                    >
+                      <source src={m.media_url} />
+                    </video>
+                  )}
+                  
+                  {/* AUDIO */}
+                  {m.media_type === "audio" && (
+                    <audio
+                      controls
+                      className="w-full"
+                    >
+                      <source src={m.media_url} />
+                    </audio>
+                  )}  
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
