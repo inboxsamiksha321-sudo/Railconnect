@@ -958,3 +958,52 @@ async def get_officer_complaint(
         "destination_station": destination_station,
         "media": media
     }
+    
+    
+@app.put("/update-complaint-status/{complaint_id}")
+async def update_complaint_status(
+    complaint_id: int,
+    status: str = Form(...),
+    remarks: str = Form(""),
+    current_officer: dict = Depends(get_current_officer)
+):
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM complaint_assignments
+        WHERE complaint_id = %s
+        AND officer_id = %s
+        """,
+        (
+            complaint_id,
+            current_officer["officer_id"]
+        )
+    )
+
+    assignment = cursor.fetchone()
+
+    if not assignment:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized"
+        )
+
+    cursor.execute(
+        """
+        UPDATE complaints
+        SET status = %s
+        WHERE complaint_id = %s
+        """,
+        (
+            status,
+            complaint_id
+        )
+    )
+
+    conn.commit()
+
+    return {
+        "success": True,
+        "message": "Complaint updated successfully"
+    }
