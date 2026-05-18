@@ -56,6 +56,8 @@ const FileComplaint = () => {
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
@@ -213,9 +215,20 @@ const FileComplaint = () => {
       formData.append("user_lat", position.coords.latitude);
       formData.append("user_long", position.coords.longitude);
 
-      if (photoFiles.length > 0) {
+      if (videoFile) {
+        formData.append("file", videoFile);
+      }
+      else if (photoFiles.length > 0) {
         formData.append("file", photoFiles[0]);
       }
+      else if (audioBlob) {
+        const audioFile = new File(
+            [audioBlob],
+            "recording.webm",
+            { type: "audio/webm" }
+          );
+          formData.append("file", audioFile);
+        }
 
       const token = localStorage.getItem("railconnect_token");
 
@@ -376,6 +389,23 @@ const FileComplaint = () => {
                 className="hidden"
               />
             </label>
+            <label className="flex items-center gap-2 bg-rail-light text-rail-mid hover:bg-blue-100 px-4 py-2.5 rounded-xl text-sm font-dm font-medium transition-all cursor-pointer">
+              Video
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setVideoFile(file);
+                  setVideoPreview(
+                    URL.createObjectURL(file)
+                  );
+                  toast.success("Video selected!");
+                }}
+                className="hidden"
+              />
+            </label>
           </div>
           {photos.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -394,6 +424,16 @@ const FileComplaint = () => {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {videoPreview && (
+            <div className="mt-4">
+              <video
+                controls
+                className="w-full max-h-72 rounded-xl border"
+              >
+                <source src={videoPreview} />
+              </video>
             </div>
           )}
         </div>
@@ -465,7 +505,15 @@ const FileComplaint = () => {
           ) : (
             <Send className="w-5 h-5" />
           )}
-          {submitting ? "Filing Complaint..." : "Submit Complaint"}
+          {submitting
+            ? videoFile
+              ? "Uploading Video..."
+              : audioBlob
+              ? "Uploading Audio..."
+              : photoFiles.length > 0
+              ? "Uploading Image..."
+              : "Filing Complaint..."
+            : "Submit Complaint"}
         </button>
       </div>
 
