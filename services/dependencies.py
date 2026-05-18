@@ -30,3 +30,44 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     except JWTError:
 
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+
+def get_current_officer(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+
+    if not credentials:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization header missing"
+        )
+
+    try:
+
+        token = credentials.credentials
+
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        officer_id = payload.get("officer_id")
+
+        if officer_id is None:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid officer token"
+            )
+
+        return payload
+
+    except JWTError:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid officer token"
+        )

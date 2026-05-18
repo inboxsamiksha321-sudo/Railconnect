@@ -11,7 +11,7 @@ from services.db_service import (
 )
 from services.urgency_service import detect_priority
 from services.auth import hash_password, verify_password, create_access_token
-from services.dependencies import get_current_user
+from services.dependencies import get_current_user, get_current_officer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import Optional
@@ -20,6 +20,7 @@ from twilio.rest import Client
 from supabase import create_client
 from jose import jwt
 from dotenv import load_dotenv
+import bcrypt
 import os
 import re
 
@@ -37,6 +38,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -674,5 +676,137 @@ async def get_complaint_details(
         "priority": complaint[8],
         "department": department
     }
+
+    return formatted
+
+
+@app.post("/officer-login")
+async def officer_login(
+
+    email: str = Form(...),
+    password: str = Form(...)
+
+):
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM officers
+        WHERE email = %s
+        """,
+        (email,)
+    )
+
+    officer = cursor.fetchone()
+    
+    print(officer)
+
+    if not officer:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    stored_password = officer[6]
+
+    password_match = bcrypt.checkpw(
+        password.encode(),
+        stored_password.encode()
+    )
+
+    if not password_match:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    token = jwt.encode(
+
+        {
+            "officer_id": officer[0],
+            "email": officer[2],
+            "role": "officer"
+        },
+
+        SECRET_KEY,
+
+        algorithm="HS256"
+    )
+
+    return {
+
+        "success": True,
+
+        "token": token,
+
+        "officer": {
+
+            "officer_id": officer[0],
+            "name": officer[1],
+            "email": officer[2],
+            "station_id": officer[3],
+            "department_id": officer[4],
+            "role": "officer"
+        }
+    }
+    
+    
+
+@app.get("/officer-complaints")
+async def get_officer_complaints(
+
+    current_officer: dict = Depends(get_current_officer)
+
+):
+
+    officer_id = current_officer["officer_id"]
+
+    cursor.execute(
+        """
+        SELECT
+            c.complaint_id,
+            c.complaint_text,
+            c.status,
+            c.priority,
+            c.created_at,
+            t.train_no
+
+        FROM complaint_assignments ca
+
+        JOIN complaints c
+        ON ca.complaint_id = c.complaint_id
+
+        JOIN trains t
+        ON c.train_id = t.train_id
+
+        WHERE ca.officer_id = %s
+
+        ORDER BY c.created_at DESC
+        """,
+        (officer_id,)
+    )
+
+    complaints = cursor.fetchall()
+
+    formatted = []
+
+    for c in complaints:
+
+        formatted.append({
+
+            "complaint_id": c[0],
+
+            "complaint_text": c[1],
+
+            "status": c[2],
+
+            "priority": c[3],
+
+            "created_at": str(c[4]),
+
+            "train_no": c[5]
+        })
 
     return formatted
