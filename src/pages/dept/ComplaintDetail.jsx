@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Train, Calendar, MapPin,
@@ -6,121 +7,6 @@ import {
   User, Phone, MessageSquare, Save
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-const complaints = {
-  'RC001': {
-    id: 'RC001', title: 'Dirty coach in train 12345',
-    category: 'Cleanliness', status: 'pending', priority: 'normal',
-    date: '06 Mar 2026', train: '12345', from: 'Pune', to: 'Mumbai',
-    coach: 'S4', pnr: '1234567890',
-    passenger: 'Raj Patel', passengerPhone: '9307794727',
-    description: 'The coach S4 in train 12345 was extremely dirty. The floor was covered with garbage and the washrooms were unusable. There was no cleaning done since the start of the journey.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '06 Mar 2026 10:32 AM', done: true  },
-      { status: 'Under Review',      date: '06 Mar 2026 11:00 AM', done: true  },
-      { status: 'Assigned to Staff', date: 'Pending',              done: false },
-      { status: 'Resolved',          date: 'Pending',              done: false },
-    ],
-  },
-  'RC002': {
-    id: 'RC002', title: 'Rude behaviour by TTE officer',
-    category: 'Staff Behaviour', status: 'in_progress', priority: 'high',
-    date: '05 Mar 2026', train: '11028', from: 'Delhi', to: 'Trivandrum',
-    coach: 'B2', pnr: '9876543210',
-    passenger: 'Amit Shah', passengerPhone: '9876543210',
-    description: 'The TTE officer was extremely rude and used inappropriate language when asked about berth allotment. He refused to show his ID card and threatened passengers.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '05 Mar 2026 09:15 AM', done: true },
-      { status: 'Under Review',      date: '05 Mar 2026 10:00 AM', done: true },
-      { status: 'Assigned to Staff', date: '05 Mar 2026 02:30 PM', done: true },
-      { status: 'Resolved',          date: 'In Progress',          done: false },
-    ],
-  },
-  'RC003': {
-    id: 'RC003', title: 'Food quality issue in pantry car',
-    category: 'Food & Catering', status: 'resolved', priority: 'normal',
-    date: '03 Mar 2026', train: '12701', from: 'Hyderabad', to: 'Mumbai',
-    coach: 'PC', pnr: '1122334455',
-    passenger: 'Priya Mehta', passengerPhone: '9112233445',
-    description: 'The food served in the pantry car was stale and had a foul smell. The veg biryani served was not cooked properly and caused stomach issues to multiple passengers.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '03 Mar 2026 08:00 AM', done: true },
-      { status: 'Under Review',      date: '03 Mar 2026 09:30 AM', done: true },
-      { status: 'Assigned to Staff', date: '03 Mar 2026 11:00 AM', done: true },
-      { status: 'Resolved',          date: '04 Mar 2026 03:00 PM', done: true },
-    ],
-  },
-  'RC004': {
-    id: 'RC004', title: 'AC not working in coach B4',
-    category: 'Electrical', status: 'pending', priority: 'high',
-    date: '02 Mar 2026', train: '12952', from: 'Mumbai', to: 'Delhi',
-    coach: 'B4', pnr: '5544332211',
-    passenger: 'Suresh Kumar', passengerPhone: '9823456789',
-    description: 'The air conditioning in coach B4 has not been working since the start of the journey. Despite multiple complaints to the TTE, no action has been taken.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '02 Mar 2026 08:00 AM', done: true  },
-      { status: 'Under Review',      date: '02 Mar 2026 09:00 AM', done: true  },
-      { status: 'Assigned to Staff', date: 'Pending',              done: false },
-      { status: 'Resolved',          date: 'Pending',              done: false },
-    ],
-  },
-  'RC005': {
-    id: 'RC005', title: 'No water in washroom',
-    category: 'Cleanliness', status: 'resolved', priority: 'normal',
-    date: '01 Mar 2026', train: '11301', from: 'Chennai', to: 'Bangalore',
-    coach: 'S6', pnr: '9988776655',
-    passenger: 'Anita Roy', passengerPhone: '9700112233',
-    description: 'The washroom in coach S6 had no running water throughout the journey.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '01 Mar 2026 07:00 AM', done: true },
-      { status: 'Under Review',      date: '01 Mar 2026 08:00 AM', done: true },
-      { status: 'Assigned to Staff', date: '01 Mar 2026 10:00 AM', done: true },
-      { status: 'Resolved',          date: '02 Mar 2026 11:00 AM', done: true },
-    ],
-  },
-  'RC006': {
-    id: 'RC006', title: 'Overcrowding in general coach',
-    category: 'Safety', status: 'rejected', priority: 'high',
-    date: '28 Feb 2026', train: '12123', from: 'Pune', to: 'Nagpur',
-    coach: 'GEN', pnr: '1234509876',
-    passenger: 'Vikram Singh', passengerPhone: '9823456789',
-    description: 'The general coach was extremely overcrowded with passengers standing in aisles and near doors.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '28 Feb 2026 10:00 AM', done: true },
-      { status: 'Under Review',      date: '28 Feb 2026 11:00 AM', done: true },
-      { status: 'Assigned to Staff', date: '28 Feb 2026 02:00 PM', done: true },
-      { status: 'Resolved',          date: '28 Feb 2026 05:00 PM', done: true },
-    ],
-  },
-  'RC007': {
-    id: 'RC007', title: 'Wrong charge for bedroll',
-    category: 'Ticketing', status: 'in_progress', priority: 'normal',
-    date: '27 Feb 2026', train: '12301', from: 'Delhi', to: 'Kolkata',
-    coach: 'A1', pnr: '1122334455',
-    passenger: 'Neha Sharma', passengerPhone: '9911223344',
-    description: 'The TTE charged extra for bedroll which should have been included in the ticket price for AC first class.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '27 Feb 2026 09:00 AM', done: true },
-      { status: 'Under Review',      date: '27 Feb 2026 10:00 AM', done: true },
-      { status: 'Assigned to Staff', date: '27 Feb 2026 01:00 PM', done: true },
-      { status: 'Resolved',          date: 'In Progress',          done: false },
-    ],
-  },
-  'RC008': {
-    id: 'RC008', title: 'Medical emergency not attended',
-    category: 'Medical', status: 'resolved', priority: 'high',
-    date: '25 Feb 2026', train: '12625', from: 'Bangalore', to: 'Delhi',
-    coach: 'S2', pnr: '5566778899',
-    passenger: 'Rahul Verma', passengerPhone: '9700112233',
-    description: 'A passenger had a medical emergency but the on-board staff was slow to respond.',
-    timeline: [
-      { status: 'Complaint Filed',   date: '25 Feb 2026 03:00 PM', done: true },
-      { status: 'Under Review',      date: '25 Feb 2026 03:30 PM', done: true },
-      { status: 'Assigned to Staff', date: '25 Feb 2026 04:00 PM', done: true },
-      { status: 'Resolved',          date: '26 Feb 2026 10:00 AM', done: true },
-    ],
-  },
-}
 
 const statusConfig = {
   pending:     { label: 'Pending',     bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <Clock className="w-4 h-4" />       },
@@ -131,11 +17,78 @@ const statusConfig = {
 
 const ComplaintDetail = () => {
   const { id } = useParams()
-  const complaint = complaints[id]
+  const [complaint, setComplaint] = useState(null)
 
-  const [status, setStatus]         = useState(complaint?.status || 'pending')
-  const [remarks, setRemarks]       = useState('')
-  const [saving, setSaving]         = useState(false)
+  const [status, setStatus] = useState('pending')
+  const [remarks, setRemarks] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+
+    const fetchComplaint = async () => {
+      try {
+        const token = localStorage.getItem(
+          "railconnect_officer_token"
+        )
+        const res = await axios.get(
+          `http://127.0.0.1:8000/officer-complaint/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        )
+        const data = res.data
+
+        const formattedComplaint = {
+          id: data.complaint_id,
+          title: data.complaint_text,
+          category: data.department || "Department",
+          status: data.status.toLowerCase().replace(" ", "_"),
+          priority: data.priority.toLowerCase(),
+          date: new Date(
+            data.created_at
+          ).toLocaleDateString(),
+          train: data.train_no,
+          from: data.source_station,
+          to: data.destination_station,
+          coach: "N/A",
+          passenger: data.passenger_email,
+          passengerPhone: "N/A",
+          description: data.complaint_text,
+          media: data.media,
+          timeline: [
+            {
+              status: "Complaint Filed",
+              date: new Date(
+                data.created_at
+              ).toLocaleString(),
+              done: true
+            },
+            {
+              status: data.status,
+              date: "",
+              done: data.status !== "Pending"
+            }
+          ]
+        }
+
+        setComplaint(
+          formattedComplaint
+        )
+
+        setStatus(
+          formattedComplaint.status
+        )
+      } catch (err) {
+        console.log(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchComplaint()
+  }, [id])
 
   if (!complaint) {
     return (
@@ -229,10 +182,6 @@ const ComplaintDetail = () => {
             </div>
             <div>
               <p className="font-semibold text-dept-blue font-dm">{complaint.passenger}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <Phone className="w-3.5 h-3.5 text-dept-gray" />
-                <span className="text-sm text-dept-gray font-dm">{complaint.passengerPhone}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -242,6 +191,48 @@ const ComplaintDetail = () => {
           <h2 className="font-syne font-bold text-dept-blue mb-3">Complaint Description</h2>
           <p className="text-sm text-gray-600 font-dm leading-relaxed">{complaint.description}</p>
         </div>
+
+        {/* Media */}
+        {complaint.media && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+            <h2 className="font-syne font-bold text-dept-blue mb-4">  
+              Attached Media
+            </h2>
+
+            {/* IMAGE */}
+            {complaint.media.media_type === "image" && (
+              <img
+                src={complaint.media.media_url}
+                alt="Complaint Media"
+                className="w-full max-h-[500px] object-contain rounded-xl border"
+              />
+            )}
+
+            {/* VIDEO */}
+            {complaint.media.media_type === "video" && (
+              <video
+                controls
+                className="w-full rounded-xl border"
+              >
+                <source
+                  src={complaint.media.media_url}
+                />
+              </video>
+            )}
+
+            {/* AUDIO */}
+            {complaint.media.media_type === "audio" && (
+              <audio
+                controls
+                className="w-full"
+              >
+                <source
+                  src={complaint.media.media_url}
+                />
+              </audio>
+            )}
+          </div>
+        )}
 
         {/* Timeline */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
