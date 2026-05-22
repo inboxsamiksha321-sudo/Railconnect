@@ -57,6 +57,8 @@ const ComplaintDetail = () => {
           passenger: data.passenger_email,
           passengerPhone: "N/A",
           whatsappNumber: data.whatsapp_number,
+          tweet_url: data.tweet_url,
+          twitterUsername: data.twitter_username,
           description: data.complaint_text,
           media: data.media,
           timeline: [
@@ -224,6 +226,18 @@ const ComplaintDetail = () => {
                   </p>
                 </div>
               )}
+
+              {complaint.twitterUsername && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Twitter Username
+                  </p>
+
+                  <p className="font-medium text-dept-blue">
+                    @{complaint.twitterUsername}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -233,6 +247,17 @@ const ComplaintDetail = () => {
           <h2 className="font-syne font-bold text-dept-blue mb-3">Complaint Description</h2>
           <p className="text-sm text-gray-600 font-dm leading-relaxed">{complaint.description}</p>
         </div>
+
+        {complaint.tweet_url && (
+          <a
+            href={complaint.tweet_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all"
+          >
+            View Original Tweet
+          </a>
+        )}
 
         {/* Media */}
         {complaint.media?.length > 0 && (
