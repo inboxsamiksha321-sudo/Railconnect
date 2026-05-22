@@ -13,9 +13,6 @@ from services.db_service import (
 )
 from services.utility import extract_train_no
 
-processed_tweet_ids = set()
-
-
 async def twitter_worker():
 
     while True:
@@ -32,21 +29,46 @@ async def twitter_worker():
 
                 tweet_id = tweet["id"]
                 text = tweet["text"]
+                username = tweet["username"]
+                
+                tweet_url = f"https://twitter.com/i/web/status/{tweet_id}"
+                
+                # check if tweet already processed
+                cursor.execute(
+                    """
+                    SELECT tweet_id
+                    FROM processed_tweets
+                    WHERE tweet_id = %s
+                    """,
+                    (tweet_id,)
+                )
 
-                if tweet_id in processed_tweet_ids:
+                existing = cursor.fetchone()
+
+                if existing:
                     continue
-
-                processed_tweet_ids.add(tweet_id)
-
-                print("\nNEW TWEET:")
-                print(text)
 
                 # extract train number
                 train_no = extract_train_no(text)
 
                 if not train_no:
 
-                    print("No train number found")
+                    cursor.execute(
+                        """
+                        INSERT INTO twitter_unprocessed
+                        (tweet_id, tweet_text, reason)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (tweet_id) DO NOTHING
+                        """,
+                        (
+                            tweet_id,
+                            text,
+                            "No train number found"
+                        )
+                    )
+
+                    conn.commit()
+
                     continue
 
                 # AI department prediction
@@ -65,8 +87,6 @@ async def twitter_worker():
                 train_id = get_train_id(train_no)
 
                 if not train_id:
-
-                    print("Invalid train number")
                     continue
 
                 # active journey
@@ -77,7 +97,23 @@ async def twitter_worker():
 
                 if not journey:
 
-                    print("Train not running")
+
+                    cursor.execute(
+                        """
+                        INSERT INTO twitter_unprocessed
+                        (tweet_id, tweet_text, reason)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (tweet_id) DO NOTHING
+                        """,
+                        (
+                            tweet_id,
+                            text,
+                            "Train not running"
+                        )
+                    )
+
+                    conn.commit()
+
                     continue
 
                 route_id = journey["route_id"]
@@ -88,6 +124,9 @@ async def twitter_worker():
 
                     print("No route found")
                     continue
+                
+                print("\nNEW TWEET:")
+                print(text)
 
                 # assign to last station for now
                 last_station = route[-1]
@@ -101,16 +140,20 @@ async def twitter_worker():
                         train_id,
                         complaint_text,
                         assigned_station_id,
-                        priority
+                        priority,
+                        tweet_url,
+                        twitter_username
                     )
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING complaint_id
                     """,
                     (
                         train_id,
                         text,
                         next_station_id,
-                        priority
+                        priority,
+                        tweet_url,
+                        username
                     )
                 )
 
@@ -170,6 +213,15 @@ async def twitter_worker():
                             officer_id
                         )
                     )
+                    
+                cursor.execute(
+                    """
+                    INSERT INTO processed_tweets (tweet_id)
+                    VALUES (%s)
+                    ON CONFLICT (tweet_id) DO NOTHING
+                    """,
+                    (tweet_id,)
+                )
 
                 conn.commit()
 

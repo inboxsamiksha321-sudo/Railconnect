@@ -25,8 +25,16 @@ def fetch_tweets():
             query=QUERY,
             max_results=10,
             since_id=last_seen_id,
-            tweet_fields=["created_at"]
+            tweet_fields=["created_at", "author_id"],
+            expansions=["author_id"],
+            user_fields=["username"]
         )
+        
+        users = {}
+        
+        if response.includes and "users" in response.includes:
+            for user in response.includes["users"]:
+                users[user.id] = user.username
 
         tweets = []
 
@@ -37,7 +45,8 @@ def fetch_tweets():
                 tweets.append({
                     "id": tweet.id,
                     "text": tweet.text,
-                    "created_at": str(tweet.created_at)
+                    "created_at": str(tweet.created_at),
+                    "username": users.get(tweet.author_id)
                 })
 
             last_seen_id = response.data[0].id

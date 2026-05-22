@@ -905,7 +905,9 @@ async def get_officer_complaint(
             c.created_at,
             t.train_no,
             u.email,
-            c.whatsapp_number
+            c.whatsapp_number,
+            c.tweet_url,
+            c.twitter_username
         FROM complaints c
 
         JOIN trains t
@@ -1031,6 +1033,8 @@ async def get_officer_complaint(
         "train_no": complaint[5],
         "passenger_email": complaint[6],
         "whatsapp_number": complaint[7],
+        "tweet_url": complaint[8],
+        "twitter_username": complaint[9],
         "department": department,
         "source_station": source_station,
         "destination_station": destination_station,
@@ -1124,8 +1128,8 @@ async def update_complaint_status(
 @app.on_event("startup")
 async def start_twitter_worker():
 
-    print("Twitter Worker Disabled")
+    print("Starting Twitter Worker....")
 
-    #asyncio.create_task(
-    #    twitter_worker()
-    #)
+    asyncio.create_task(
+        twitter_worker()
+    )
