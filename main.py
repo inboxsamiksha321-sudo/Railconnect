@@ -21,6 +21,9 @@ from supabase import create_client
 from jose import jwt
 from dotenv import load_dotenv
 from deep_translator import GoogleTranslator
+from services.twitter_worker import twitter_worker
+from services.utility import extract_train_no
+import asyncio
 import bcrypt
 import os
 import re
@@ -52,11 +55,6 @@ account_sid = os.getenv("TWILIO_SID")
 auth_token = os.getenv("TWILIO_AUTH")
 
 client = Client(account_sid, auth_token)
-
-
-def extract_train_no(text):
-    match = re.search(r"\b\d{5}\b", text)
-    return match.group() if match else None
 
 
 @app.get("/")
@@ -385,11 +383,11 @@ async def whatsapp_webhook(request: Request):
     # ---- INSERT COMPLAINT ----
     cursor.execute(
         """
-        INSERT INTO complaints (train_id, complaint_text, assigned_station_id, priority)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO complaints (train_id, complaint_text, assigned_station_id, priority, whatsapp_number)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING complaint_id;
         """,
-        (train_id, text, next_station_id, priority),
+        (train_id, text, next_station_id, priority, sender),
     )
 
     complaint_id = cursor.fetchone()[0]
@@ -859,13 +857,14 @@ async def get_officer_complaint(
             c.priority,
             c.created_at,
             t.train_no,
-            u.email
+            u.email,
+            c.whatsapp_number
         FROM complaints c
 
         JOIN trains t
         ON c.train_id = t.train_id
         
-        JOIN users u
+        LEFT JOIN users u
         ON c.user_id = u.id
 
         JOIN complaint_assignments ca
@@ -984,6 +983,7 @@ async def get_officer_complaint(
         "created_at": str(complaint[4]),
         "train_no": complaint[5],
         "passenger_email": complaint[6],
+        "whatsapp_number": complaint[7],
         "department": department,
         "source_station": source_station,
         "destination_station": destination_station,
@@ -1038,3 +1038,13 @@ async def update_complaint_status(
         "success": True,
         "message": "Complaint updated successfully"
     }
+    
+    
+@app.on_event("startup")
+async def start_twitter_worker():
+
+    print("Twitter Worker Disabled")
+
+    #asyncio.create_task(
+    #    twitter_worker()
+    #)
