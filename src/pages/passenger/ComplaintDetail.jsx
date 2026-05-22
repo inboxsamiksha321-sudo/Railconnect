@@ -52,6 +52,7 @@ const ComplaintDetail = () => {
           category: data.department || "General",
           from: data.source_station,
           to: data.destination_station,
+          remarks: data.remarks,
           date: new Date(data.created_at).toLocaleDateString(),
           timeline: [
             {
@@ -237,6 +238,18 @@ const ComplaintDetail = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Officer Remarks */}
+        {complaint.remarks && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-4">
+            <h2 className="font-syne font-bold text-blue-800 mb-3">
+              Officer Remarks
+            </h2>
+            <p className="text-sm text-blue-700 font-dm leading-relaxed">
+              {complaint.remarks}
+            </p>
           </div>
         )}
 
