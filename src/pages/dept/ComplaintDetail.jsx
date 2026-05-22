@@ -56,6 +56,7 @@ const ComplaintDetail = () => {
           coach: "N/A",
           passenger: data.passenger_email,
           passengerPhone: "N/A",
+          whatsappNumber: data.whatsapp_number,
           description: data.complaint_text,
           media: data.media,
           timeline: [
@@ -208,7 +209,21 @@ const ComplaintDetail = () => {
               <User className="w-6 h-6 text-dept-mid" />
             </div>
             <div>
-              <p className="font-semibold text-dept-blue font-dm">{complaint.passenger}</p>
+              <p className="font-semibold text-dept-blue font-dm">
+                {complaint.passenger}
+              </p>
+
+              {complaint.whatsappNumber && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    WhatsApp Number
+                  </p>
+
+                  <p className="font-medium text-dept-blue">
+                    {complaint.whatsappNumber}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
