@@ -379,6 +379,23 @@ async def whatsapp_webhook(request: Request):
     # ---- NO LOCATION → LAST STATION ----
     last_station = route[-1]
     next_station_id = last_station[0]
+    
+    cursor.execute(
+        """
+        SELECT station_name
+        FROM stations
+        WHERE station_id = %s
+        """,
+        (next_station_id,)
+    )
+
+    station_result = cursor.fetchone()
+
+    station_name = (
+        station_result[0]
+        if station_result
+        else "Unknown Station"
+    )
 
     # ---- INSERT COMPLAINT ----
     cursor.execute(
@@ -410,6 +427,27 @@ async def whatsapp_webhook(request: Request):
         dept_id = result[0]
 
         officer_id = get_officer_id(next_station_id, dept_id)
+        
+        cursor.execute(
+            """
+            SELECT name, email
+            FROM officers
+            WHERE officer_id = %s
+            """,
+            (officer_id,)
+        )
+
+        officer_result = cursor.fetchone()
+
+        if officer_result:
+
+            officer_name = officer_result[0]
+            officer_email = officer_result[1]
+
+        else:
+
+            officer_name = "Officer Not Assigned"
+            officer_email = "N/A"
 
         cursor.execute(
             """
@@ -433,7 +471,15 @@ async def whatsapp_webhook(request: Request):
 
     client.messages.create(
         from_="whatsapp:+14155238886",
-        body=f"✅ Complaint registered successfully!\nComplaint ID: {complaint_id}",
+        body=(
+            f"Complaint Registered Successfully!\n\n"
+            f"Complaint ID: {complaint_id}\n"
+            f"Department: {dept}\n"
+            f"Assigned Station: {station_name}\n"
+            f"Assigned Officer: {officer_name}\n"
+            f"Officer Email: {officer_email}\n\n"
+            f"Our team will take action shortly."
+        ),
         to=sender,
     )
 
@@ -693,7 +739,7 @@ async def get_complaint_details(
     formatted = {
 
         "complaint_id": complaint[0],
-        "train_no": complaint[10],
+        "train_no": complaint[12],
         "source_station": source_station,
         "destination_station": destination_station,
         "complaint_text": complaint[2],
@@ -704,6 +750,7 @@ async def get_complaint_details(
         "status": complaint[6],
         "created_at": str(complaint[7]),
         "priority": complaint[8],
+        "remarks": complaint[11],
         "department": department
     }
 
@@ -1019,20 +1066,54 @@ async def update_complaint_status(
             status_code=403,
             detail="Not authorized"
         )
+        
+    cursor.execute(
+        """
+        SELECT whatsapp_number
+        FROM complaints
+        WHERE complaint_id = %s
+        """,
+        (complaint_id,)
+    )
 
+    whatsapp_result = cursor.fetchone()
+
+    whatsapp_number = (
+        whatsapp_result[0]
+        if whatsapp_result
+        else None
+    )
+    
     cursor.execute(
         """
         UPDATE complaints
-        SET status = %s
+        SET status = %s,
+            remarks = %s
         WHERE complaint_id = %s
         """,
         (
             status,
+            remarks,
             complaint_id
         )
     )
 
     conn.commit()
+    
+    if whatsapp_number:
+
+        client.messages.create(
+            from_="whatsapp:+14155238886",
+
+            body=(
+                f"Complaint Update\n\n"
+                f"Complaint ID: {complaint_id}\n"
+                f"Status: {status.upper()}\n\n"
+                f"Officer Remarks:\n"
+                f"{remarks}"
+            ),
+            to=whatsapp_number,
+        )
 
     return {
         "success": True,
