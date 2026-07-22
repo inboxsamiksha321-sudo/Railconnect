@@ -1,0 +1,237 @@
+import asyncio
+from datetime import datetime
+from services.twitter_collector import fetch_tweets
+from services.ai_service import predict
+from services.urgency_service import detect_priority
+from services.db_service import (
+    get_train_id,
+    get_active_journey,
+    get_train_route,
+    get_officer_id,
+    conn,
+    cursor
+)
+from services.utility import extract_train_no
+
+async def twitter_worker():
+
+    while True:
+
+        try:
+
+            print("\nChecking Twitter complaints...")
+
+            tweets = fetch_tweets()
+
+            print(f"Fetched {len(tweets)} tweets")
+
+            for tweet in tweets:
+
+                tweet_id = tweet["id"]
+                text = tweet["text"]
+                username = tweet["username"]
+                
+                tweet_url = f"https://twitter.com/i/web/status/{tweet_id}"
+                
+                # check if tweet already processed
+                cursor.execute(
+                    """
+                    SELECT tweet_id
+                    FROM processed_tweets
+                    WHERE tweet_id = %s
+                    """,
+                    (tweet_id,)
+                )
+
+                existing = cursor.fetchone()
+
+                if existing:
+                    continue
+
+                # extract train number
+                train_no = extract_train_no(text)
+
+                if not train_no:
+
+                    cursor.execute(
+                        """
+                        INSERT INTO twitter_unprocessed
+                        (tweet_id, tweet_text, reason)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (tweet_id) DO NOTHING
+                        """,
+                        (
+                            tweet_id,
+                            text,
+                            "No train number found"
+                        )
+                    )
+
+                    conn.commit()
+
+                    continue
+
+                # AI department prediction
+                departments = set()
+
+                for d in predict(text):
+                    departments.add(d)
+
+                if not departments:
+                    departments.add("General")
+
+                # priority
+                priority = detect_priority(departments)
+
+                # train id
+                train_id = get_train_id(train_no)
+
+                if not train_id:
+                    continue
+
+                # active journey
+                journey = get_active_journey(
+                    train_id,
+                    datetime.now()
+                )
+
+                if not journey:
+
+
+                    cursor.execute(
+                        """
+                        INSERT INTO twitter_unprocessed
+                        (tweet_id, tweet_text, reason)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (tweet_id) DO NOTHING
+                        """,
+                        (
+                            tweet_id,
+                            text,
+                            "Train not running"
+                        )
+                    )
+
+                    conn.commit()
+
+                    continue
+
+                route_id = journey["route_id"]
+
+                route = get_train_route(route_id)
+
+                if not route:
+
+                    print("No route found")
+                    continue
+                
+                print("\nNEW TWEET:")
+                print(text)
+
+                # assign to last station for now
+                last_station = route[-1]
+                next_station_id = last_station[0]
+
+                # insert complaint
+                cursor.execute(
+                    """
+                    INSERT INTO complaints
+                    (
+                        train_id,
+                        complaint_text,
+                        assigned_station_id,
+                        priority,
+                        tweet_url,
+                        twitter_username
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING complaint_id
+                    """,
+                    (
+                        train_id,
+                        text,
+                        next_station_id,
+                        priority,
+                        tweet_url,
+                        username
+                    )
+                )
+
+                complaint_id = cursor.fetchone()[0]
+
+                # departments
+                for dept in departments:
+
+                    cursor.execute(
+                        """
+                        SELECT department_id
+                        FROM departments
+                        WHERE department_name = %s
+                        """,
+                        (dept,)
+                    )
+
+                    result = cursor.fetchone()
+
+                    if not result:
+                        continue
+
+                    dept_id = result[0]
+
+                    officer_id = get_officer_id(
+                        next_station_id,
+                        dept_id
+                    )
+
+                    cursor.execute(
+                        """
+                        INSERT INTO complaint_departments
+                        (complaint_id, department_id)
+                        VALUES (%s, %s)
+                        """,
+                        (
+                            complaint_id,
+                            dept_id
+                        )
+                    )
+
+                    cursor.execute(
+                        """
+                        INSERT INTO complaint_assignments
+                        (
+                            complaint_id,
+                            station_id,
+                            department_id,
+                            officer_id
+                        )
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (
+                            complaint_id,
+                            next_station_id,
+                            dept_id,
+                            officer_id
+                        )
+                    )
+                    
+                cursor.execute(
+                    """
+                    INSERT INTO processed_tweets (tweet_id)
+                    VALUES (%s)
+                    ON CONFLICT (tweet_id) DO NOTHING
+                    """,
+                    (tweet_id,)
+                )
+
+                conn.commit()
+
+                print(
+                    f"Twitter complaint stored: {complaint_id}"
+                )
+
+        except Exception as e:
+
+            print("\nTWITTER WORKER ERROR:")
+            print(e)
+
+        await asyncio.sleep(10)
